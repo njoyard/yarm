@@ -16,7 +16,7 @@ yarm.resource("myResource", {
 	}
 });
 
-app.use(yarm());
+app.use("/rest", yarm());
 app.listen(80);
 ```
 
