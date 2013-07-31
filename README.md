@@ -16,7 +16,7 @@ yarm.resource("myResource", {
 	}
 });
 
-app.use(yarm);
+app.use(yarm());
 app.listen(80);
 ```
 
@@ -28,3 +28,9 @@ $ curl http://localhost:80/rest/myResource
 More documentation to come ! In the meantime check out lib/index.js for
 a comprehensive resource definition documentation, and check lib/{array,
 object,mongoose}.js for resource definition helpers.
+
+REST Conventions
+----------------
+
+yarm deals with two types of resources: documents and collections.
+Collections are sets of documents, 
