@@ -36,7 +36,7 @@ define two main type of resources: documents and collections.
 Documents are resources that may be retrieved (GET method), removed (DELETE),
 replaced (PUT) and updated (PATCH).
 
-#### GET
+#### GET (and HEAD)
 
 To enable the GET method on a resource,  you just need to define a `get` method
 on the resource definition.
@@ -167,7 +167,7 @@ yarm.resource("updateable", {
 		if (isPatch) {
 			Object.keys(body).forEach(function(key) {
 				object[key] = body[key];
-			})
+			});
 		} else {
 			object = body;
 		}
@@ -189,8 +189,8 @@ $ curl http://localhost/rest/greeting
 { "foo": "bar" }
 ```
 
-There is no way to enable only one of the PUT and PATCH method at a time with
-yarm.  You can still implement that manually however:
+There is currently no way to enable only one of the PUT and PATCH method at
+a time with yarm.  You can still implement that manually however.
 
 ```javascript
 yarm.resource("patchOnly", {
@@ -207,6 +207,255 @@ yarm.resource("patchOnly", {
 });
 ```
 
+#### Other methods
+
+yarm does not support other HTTP methods than GET, HEAD, PUT, PATCH and DELETE
+on documents.
+
 ### Collections
 
-More to come soon...
+Collections are resources that contain a set of other resources.  They may
+be retrieved (GET) or appended to (POST).  Add a truthy `isCollection`
+property to a resource definition to tell yarm it is a collection.
+
+#### GET (and HEAD)
+
+To enable GET requests on a collection, define two `count` and `list` methods.
+
+The `count` method receives the request object and a callback as parameters,
+and should call the callback with an optional `Error` instance and the total
+number of resources in the collection as parameters.  The `list` method
+receives the request object, the requested offset and limit, and a callback
+as parameters, and should call the callback with an optional `Error` instance
+and an array corresponding to the requested items as parameters.  A limit of
+zero indicates that the client requests as many items as possible.
+
+```javascript
+yarm.resource("collection", {
+	isCollection: true,
+
+	count: function(req, cb) {
+		cb(null, 3);
+	},
+
+	list: function(req, offset, limit, cb) {
+		var items = [1, 2, 3];
+
+		if (limit > 0) {
+			items = items.slice(offset, offset + limit);
+		} else {
+			items = items.slice(offset);
+		}
+
+		cb(null, items);
+	}
+});
+```
+
+When handling GET requests, yarm will respond with a JSON object containing
+a `_count` key with the collection item count, and a `_items` key with the
+returned item array.
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2, 3]
+}
+```
+
+yarm supports two querystring parameters when GETting collections: `offset`
+and `limit`.
+
+```sh
+$ curl http://localhost/rest/collection?offset=1&limit=1
+{
+	"_count": 3,
+	"_items": [2]
+}
+```
+
+When no limit is requested, yarm defaults to 10 items.  You can override this
+default limit by passing an options object with a `defaultLimit` property when
+initializing yarm.
+
+```javascript
+app.use("/rest", yarm({ defaultLimit: 2 }));
+```
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2]
+}
+```
+
+#### POST
+
+To enable POST requests on a collection, define a `post` method.  It will
+receive the request object and a callback to call with an optional `Error`
+instance and the response body as parameters.
+
+
+```javascript
+var array = [1, 2, 3];
+
+yarm.resource("collection", {
+	isCollection: true,
+
+	count: function(req, cb) {
+		cb(null, array.length);
+	},
+
+	list: function(req, offset, limit, cb) {
+		var items;
+
+		if (limit > 0) {
+			items = array.slice(offset, offset + limit);
+		} else {
+			items = array.slice(offset);
+		}
+
+		cb(null, items);
+	},
+
+	post: function(req, cb) {
+		array.push(req.body);
+		cb();
+	}
+});
+```
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2, 3]
+}
+$ curl -X POST --data "4" http://localhost/rest/collection
+$ curl http://localhost/rest/collection
+{
+	"_count": 4,
+	"_items": [1, 2, 3, 4]
+}
+```
+
+If you would like to insert items at a specific index in the collection,
+you can implement it using a custom querystring parameter.
+
+```javascript
+var array = [1, 2, 3];
+
+yarm.resource("collection", {
+	/* ... */
+
+	post: function(req, cb) {
+		if (req.params("index")) {
+			array.splice(Number(req.params("index")), 0, [req.body]);
+		} else {
+			array.push(req.body);
+		}
+
+		cb();
+	}
+});
+```
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2, 3]
+}
+$ curl -X POST --data "1.5" http://localhost/rest/collection?index=1
+$ curl http://localhost/rest/collection
+{
+	"_count": 4,
+	"_items": [1, 1.5, 2, 3]
+}
+```
+
+#### Other methods
+
+yarm does not support other HTTP methods than GET, HEAD and POST on
+collections.
+
+### Sub-resources
+
+You can enable accessing sub-resources on any resource in yarm, no matter
+whether the resource is a document or a collection.  To enable sub-resource
+lookup on a resource, define a `sub` method on that resource.  This method
+will receive the sub-resource name and a callback as arguments.  It should
+call the callback with an optional `Error` instance and the sub-resource
+definition as parameters.
+
+```javascript
+yarm.resource("greeting", {
+	get: function(req, cb) {
+		cb(null, { hello: "wolrd" });
+	},
+
+	sub: function(name, cb) {
+		if (name === "french") {
+			cb(null, {
+				get: function(req, cb) {
+					cb(null, { bonjour: "tout le monde" });
+				}
+			});
+		} else {
+			cb();
+		}
+	}
+});
+```
+
+```sh
+$ curl http://localhost/rest/greeting
+{ "hello": "world" }
+$ curl http://localhost/rest/greeting/french
+{ "bonjour": "tout le monde" }
+```
+
+When the `sub` method calls its callback argument without a resource definition,
+or when a sub-resource is requested on a resource without a `sub` method, yarm
+sends a 404 response to the client.
+
+Of course you can nest sub-resource definitions.  In that case, yarm will chain
+calls to each `sub` method, until it finds the requested resource, until a
+resource in the tree has no such method, or until one calls its callback without
+any resource definition.  In the two latter cases, yarm sends a 404 response to
+the client.
+
+```javascript
+yarm.resource("greeting", {
+	get: function(req, cb) {
+		cb(null, { hello: "wolrd" });
+	},
+
+	sub: function(name, cb) {
+		if (name === "french") {
+			cb(null, {
+				get: function(req, cb) {
+					cb(null, { bonjour: "tout le monde" });
+				},
+
+				sub: function(who, cb) {
+					cb(null, {
+						get: function(req, cb) {
+							cb(null, { bonjour: who });
+						}
+					});
+				}
+			});
+		} else {
+			cb();
+		}
+	}
+});
+```
+
+```sh
+$ curl http://localhost/rest/greeting/french/alice
+{ "bonjour": "alice" }
+```
