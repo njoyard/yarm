@@ -71,13 +71,13 @@ Here are some examples:
 yarm.resource("html", {
 	get: function(req, cb) {
 		// You can use strings, Buffers or readable streams here
-		cb(null, new yarn.ResponseBody("<div>Hello</div>", "text/html"));
+		cb(null, new yarm.ResponseBody("<div>Hello</div>", "text/html"));
 	}
 });
 
 yarm.resource("song", {
 	get: function(req, cb) {
-		cb(null, new yarn.ResponseFile(
+		cb(null, new yarm.ResponseFile(
 			"/home/bob/music/song.ogg",
 			"audio/ogg"
 		));
@@ -119,6 +119,7 @@ yarm.resource("teapot", {
 		cb(err);
 	}
 });
+```
 
 #### DELETE
 
