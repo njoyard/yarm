@@ -184,6 +184,9 @@ yarm.resource("updateable", {
 ```sh
 $ curl http://localhost/rest/greeting
 { "hello": "world" }
+$ curl -X PATCH --data "{ \"foo\": \"bar\" }" http://localhost/rest/greeting
+$ curl http://localhost/rest/greeting
+{ "hello": "world", "foo": "bar" }
 $ curl -X PUT --data "{ \"foo\": \"bar\" }" http://localhost/rest/greeting
 $ curl http://localhost/rest/greeting
 { "foo": "bar" }
@@ -393,7 +396,7 @@ definition as parameters.
 ```javascript
 yarm.resource("greeting", {
 	get: function(req, cb) {
-		cb(null, { hello: "wolrd" });
+		cb(null, { hello: "world" });
 	},
 
 	sub: function(name, cb) {
@@ -430,7 +433,7 @@ the client.
 ```javascript
 yarm.resource("greeting", {
 	get: function(req, cb) {
-		cb(null, { hello: "wolrd" });
+		cb(null, { hello: "world" });
 	},
 
 	sub: function(name, cb) {
