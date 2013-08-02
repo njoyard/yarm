@@ -200,7 +200,7 @@ yarm.resource("patchOnly", {
 	put: function(req, isPatch, cb) {
 		if (!isPatch) {
 			var err = new Error("Not allowed");
-			err.code = 406;
+			err.code = 405;
 			cb(err);
 			return;
 		}
@@ -462,3 +462,9 @@ yarm.resource("greeting", {
 $ curl http://localhost/rest/greeting/french/alice
 { "bonjour": "alice" }
 ```
+
+Removing resources
+------------------
+
+You can remove previously defined resources by calling
+`yarm.resource.remove("name");`.
