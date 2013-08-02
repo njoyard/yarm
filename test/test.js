@@ -149,8 +149,6 @@ describe("Document resource", function() {
 			});
 		});
 
-		/* Does not work yet => bug in test ? in yarm ? in express ?
-
 		it("should respond with the readable stream result from .get", function(done) {
 			function TestStream(opt) {
 				Readable.call(this, opt);
@@ -180,7 +178,7 @@ describe("Document resource", function() {
 
 				done();
 			});
-		});*/
+		});
 
 		it("should send response with mimetype when .get sends a ResponseBody", function(done) {
 			resource("test", {
