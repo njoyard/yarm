@@ -358,7 +358,7 @@ yarm.resource("collection", {
 
 	post: function(req, cb) {
 		if (req.params("index")) {
-			array.splice(Number(req.params("index")), 0, [req.body]);
+			array.splice(Number(req.params("index")), 0, req.body);
 		} else {
 			array.push(req.body);
 		}
