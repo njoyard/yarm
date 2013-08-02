@@ -3,6 +3,9 @@ yarm
 
 Yet Another REST Module for node.js and Express.
 
+[![Build Status](http://travis-ci.org/njoyard/yarm.png)](http://travis-ci.org/njoyard/yarm)
+
+
 Usage
 -----
 
