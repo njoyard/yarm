@@ -461,12 +461,6 @@ $ curl http://localhost/rest/greeting/french/alice
 { "bonjour": "alice" }
 ```
 
-Removing resources
-------------------
-
-You can remove previously defined resources by calling
-`yarm.resource.remove("name");`.
-
 Built-in resource definition helpers
 ------------------------------------
 
@@ -492,6 +486,31 @@ yarm.mongooseResource("model", Model, {
 
 	toObject: {
 		virtuals: true
+	}
+});
+```
+
+Miscellaneous
+-------------
+
+### Removing resources
+
+You can remove previously defined resources by calling
+`yarm.resource.remove("name");`.
+
+### Calling callbacks
+
+You may want to use `process.nextTick()` instead of calling the resource
+method callbacks directly.  This is mainly useful to avoid exceeding the
+call stack limit when dealing deeply nested subresources.  One disadvantage
+is that it adds an additional level of callback nesting in your code.
+
+```javascript
+yarm.resource("nextTick", {
+	get: function(req, cb) {
+		process.nextTick(function() {
+			cb(null, { hello: "world" });
+		});
 	}
 });
 ```
