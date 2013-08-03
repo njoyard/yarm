@@ -490,5 +490,4 @@ yarm.mongooseResource("model", Model, {
 		virtuals: true
 	}
 });
-
 ```
