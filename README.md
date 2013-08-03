@@ -31,18 +31,22 @@ $ curl http://localhost/rest/greeting
 Defining resources
 ------------------
 
-Resources are defined by calling `yarm.resource("name", definition)`. You can
-define two main type of resources: documents and collections.
+Resources are defined by calling `yarm.resource("name", definition)`.  The
+definition should have methods to handle the different HTTP request verbs.
+When a request is made on a resource that does not have the corresponding
+methods, yarm sends a 405 Not Allowed response to the client.
 
-### Documents
+### Handling GET and HEAD requests
 
-Documents are resources that may be retrieved (GET method), removed (DELETE),
-replaced (PUT) and updated (PATCH).
+yarm allows two main kinds of resources when handling GET and HEAD requests:
+documents and collections.  Documents are basic resources, while collections
+are sets of documents.  yarm distinguishes between the two based on the
+methods available on the resource definition.
 
-#### GET (and HEAD)
+#### Documents
 
-To enable the GET method on a resource,  you just need to define a `get` method
-on the resource definition.
+To enable document-type GET handling,  you just need to set a `get` method on
+the resource definition.
 
 ```javascript
 yarm.resource("greeting", {
@@ -124,9 +128,84 @@ yarm.resource("teapot", {
 });
 ```
 
-#### DELETE
+#### Collections
 
-Removing a resource is enabled by defining a `del` method.  This method has the
+To enable collection-type GET handling, define two `count` and `list` methods.
+
+```javascript
+yarm.resource("collection", {
+	count: function(req, cb) {
+		cb(null, 3);
+	},
+
+	list: function(req, offset, limit, cb) {
+		var items = [1, 2, 3];
+
+		if (limit > 0) {
+			items = items.slice(offset, offset + limit);
+		} else {
+			items = items.slice(offset);
+		}
+
+		cb(null, items);
+	}
+});
+```
+
+The `count` method receives the request object and a callback as parameters,
+and should call the callback with an optional `Error` instance and the total
+number of resources in the collection as parameters.  The `list` method
+receives the request object, the requested offset and limit, and a callback
+as parameters, and should call the callback with an optional `Error` instance
+and an array corresponding to the requested items as parameters.  A limit of
+zero indicates that the client requests as many items as possible.
+
+When handling GET requests on collections, yarm will respond with a JSON
+object containing a `_count` key with the total collection item count, and a
+`_items` key with the item array sent by `list`.
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2, 3]
+}
+```
+
+yarm supports two querystring parameters when GETting collections: `offset`
+and `limit`.
+
+```sh
+$ curl http://localhost/rest/collection?offset=1&limit=1
+{
+	"_count": 3,
+	"_items": [2]
+}
+```
+
+When no limit is requested, yarm defaults to 10 items.  You can override this
+default limit by passing an options object with a `defaultLimit` property when
+initializing yarm.
+
+```javascript
+app.use("/rest", yarm({ defaultLimit: 2 }));
+```
+
+```sh
+$ curl http://localhost/rest/collection
+{
+	"_count": 3,
+	"_items": [1, 2]
+}
+```
+
+Note that when a `get` method also exists on the resource definition, it will
+take precedence over the `count` and `list` methods and the resource will be
+handled as a document.
+
+#### Handling DELETE requests
+
+Deleting a resource is enabled by defining a `del` method.  This method has the
 same prototype as the `get` method.  You may pass content to the callback as its
 second parameter, or you may prefer sending a 204 No Content response.
 
@@ -151,7 +230,7 @@ yarm.resource("deletable", {
 });
 ```
 
-#### PUT and PATCH
+#### Handling PUT and PATCH requests
 
 Replacing and updating a resource is enabled by defining a `put` method.  This
 method will receive the request object, a boolean indicating whether this is a
@@ -195,6 +274,10 @@ $ curl http://localhost/rest/greeting
 { "foo": "bar" }
 ```
 
+Note: you should add the `--header "Content-Type: application/json"` option
+to the curl command line for those examples to work as intented.  I omitted
+it for the sake of readability.
+
 There is currently no way to enable only one of the PUT and PATCH method at
 a time with yarm.  You can still implement that manually however.
 
@@ -213,103 +296,18 @@ yarm.resource("patchOnly", {
 });
 ```
 
-#### Other methods
+#### Handling POST requests
 
-yarm does not support other HTTP methods than GET, HEAD, PUT, PATCH and DELETE
-on documents.
-
-### Collections
-
-Collections are resources that contain a set of other resources.  They may
-be retrieved (GET) or appended to (POST).  Add a truthy `isCollection`
-property to a resource definition to tell yarm it is a collection.
-
-#### GET (and HEAD)
-
-To enable GET requests on a collection, define two `count` and `list` methods.
-
-The `count` method receives the request object and a callback as parameters,
-and should call the callback with an optional `Error` instance and the total
-number of resources in the collection as parameters.  The `list` method
-receives the request object, the requested offset and limit, and a callback
-as parameters, and should call the callback with an optional `Error` instance
-and an array corresponding to the requested items as parameters.  A limit of
-zero indicates that the client requests as many items as possible.
-
-```javascript
-yarm.resource("collection", {
-	isCollection: true,
-
-	count: function(req, cb) {
-		cb(null, 3);
-	},
-
-	list: function(req, offset, limit, cb) {
-		var items = [1, 2, 3];
-
-		if (limit > 0) {
-			items = items.slice(offset, offset + limit);
-		} else {
-			items = items.slice(offset);
-		}
-
-		cb(null, items);
-	}
-});
-```
-
-When handling GET requests, yarm will respond with a JSON object containing
-a `_count` key with the collection item count, and a `_items` key with the
-returned item array.
-
-```sh
-$ curl http://localhost/rest/collection
-{
-	"_count": 3,
-	"_items": [1, 2, 3]
-}
-```
-
-yarm supports two querystring parameters when GETting collections: `offset`
-and `limit`.
-
-```sh
-$ curl http://localhost/rest/collection?offset=1&limit=1
-{
-	"_count": 3,
-	"_items": [2]
-}
-```
-
-When no limit is requested, yarm defaults to 10 items.  You can override this
-default limit by passing an options object with a `defaultLimit` property when
-initializing yarm.
-
-```javascript
-app.use("/rest", yarm({ defaultLimit: 2 }));
-```
-
-```sh
-$ curl http://localhost/rest/collection
-{
-	"_count": 3,
-	"_items": [1, 2]
-}
-```
-
-#### POST
-
-To enable POST requests on a collection, define a `post` method.  It will
+To enable POST requests on a resource, define a `post` method.  It will
 receive the request object and a callback to call with an optional `Error`
-instance and the response body as parameters.
+instance and the response body as parameters.  POST requests may make more
+sense on collections than documents, but in the end it's up to you.
 
 
 ```javascript
 var array = [1, 2, 3];
 
 yarm.resource("collection", {
-	isCollection: true,
-
 	count: function(req, cb) {
 		cb(null, array.length);
 	},
@@ -381,11 +379,6 @@ $ curl http://localhost/rest/collection
 	"_items": [1, 1.5, 2, 3]
 }
 ```
-
-#### Other methods
-
-yarm does not support other HTTP methods than GET, HEAD and POST on
-collections.
 
 ### Sub-resources
 
@@ -471,3 +464,31 @@ Removing resources
 
 You can remove previously defined resources by calling
 `yarm.resource.remove("name");`.
+
+Built-in resource definition helpers
+------------------------------------
+
+yarm comes with tools to make defining common resource types easier.
+Those will be documented more extensively in the near future; in the
+meantime, here are some simple examples.
+
+```javascript
+
+yarn.arrayResource("array", [1, 2, 3]);
+
+yarn.objectResource("object", { key: "value" });
+
+// Defined only when mongoose is present. All the options are ...optional.
+yarn.mongooseResource("model", Model, {
+	sort: { field: "asc" },
+
+	query: function() {
+		return Model.find().populate("subdocument");
+	},
+
+	toObject: {
+		virtuals: true
+	}
+});
+
+```
