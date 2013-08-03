@@ -70,19 +70,55 @@ var methods = {
 	"GET": { name: "get", cbIndex: 1 },
 	"PUT": { name: "put", cbIndex: 2 },
 	"PATCH": { name: "put", cbIndex: 2 },
-	"POST": { name: "post", cbIndex: 2 },
+	"POST": { name: "post", cbIndex: 1 },
 	"DELETE": { name: "del", cbIndex: 1 }
 };
 
-
 /* Describe standard tests valid for all methods */
 function callbackTests(method, it) {
-	var methodName = methods[method].name,
-		doRequest = request.bind(null, method),
-		callbackIndex = methods[method].cbIndex;
+	var methodName, doRequest, callbackIndex,
+		doResultTests = true,
+		additionalMethods = {};
+
+	switch(method) {
+		case "COUNT":
+			methodName = "count";
+			doRequest = request.bind(null, "GET");
+			callbackIndex = 1;
+			doResultTests = false;
+			additionalMethods = {
+				"list": function(req, offset, limit, cb) { cb(); }
+			};
+
+			break;
+
+		case "LIST":
+			methodName = "list";
+			doRequest = request.bind(null, "GET");
+			callbackIndex = 3;
+			doResultTests = false;
+			additionalMethods = {
+				"count": function(req, cb) { cb(); }
+			};
+
+			break;
+
+		default:
+			methodName = methods[method].name;
+			doRequest = request.bind(null, method);
+			callbackIndex = methods[method].cbIndex;
+			break;
+	}
+
 
 	it("should respond with 405 Not Allowed when ." + methodName + " is not present", function(done) {
-		resource("test", {});
+		var def = {};
+
+		Object.keys(additionalMethods).forEach(function(key) {
+			def[key] = additionalMethods[key];
+		});
+
+		resource("test", def);
 
 		doRequest("/test", function(res, body) {
 			assert.strictEqual(body, "Not allowed");
@@ -95,6 +131,11 @@ function callbackTests(method, it) {
 	it("should call ." + methodName, function(done) {
 		var called = false,
 			def = {};
+
+		Object.keys(additionalMethods).forEach(function(key) {
+			def[key] = additionalMethods[key];
+		});
+
 
 		def[methodName] = function() {
 			var req = arguments[0],
@@ -114,6 +155,10 @@ function callbackTests(method, it) {
 
 	it("should respond 500 with the error message passed from ." + methodName, function(done) {
 		var def = {};
+
+		Object.keys(additionalMethods).forEach(function(key) {
+			def[key] = additionalMethods[key];
+		});
 
 		def[methodName] = function() {
 			var req = arguments[0],
@@ -135,6 +180,10 @@ function callbackTests(method, it) {
 	it("should respond with the error message and code passed from ." + methodName, function(done) {
 		var def = {};
 
+		Object.keys(additionalMethods).forEach(function(key) {
+			def[key] = additionalMethods[key];
+		});
+
 		def[methodName] = function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
@@ -154,155 +203,187 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should respond with 204 No content when ." + methodName + " sends nothing", function(done) {
-		var def = {};
+	if (doResultTests) {
+		it("should respond with 204 No content when ." + methodName + " sends nothing", function(done) {
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb();
+			};
+
+			resource("test", def);
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(res.statusCode, 204);
+
+				done();
+			});
+		});
+
+		it("should respond with the result from ." + methodName, function(done) {
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb(null, "Test content");
+			};
+
+			resource("test", def);
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(body, "Test content");
+				assert.strictEqual(res.statusCode, 200);
+
+				done();
+			});
+		});
+
+		it("should respond with the Buffer result from ." + methodName, function(done) {
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb(null, new Buffer("Test content"));
+			};
+
+			resource("test", def);
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(body, "Test content");
+				assert.strictEqual(res.statusCode, 200);
+
+				done();
+			});
+		});
+
+		it("should respond with the readable stream result from ." + methodName, function(done) {
+			function TestStream(opt) {
+				Readable.call(this, opt);
+				this._done = false;
+			}
+
+			util.inherits(TestStream, Readable);
+
+			TestStream.prototype._read = function() {
+				if (!this._done) {
+					this.push("Test content");
+					this._done = true;
+				} else {
+					this.push(null);
+				}
+			};
+
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb(null, new TestStream());
+			};
+
+			resource("test", def);
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(body, "Test content");
+				assert.strictEqual(res.statusCode, 200);
+
+				done();
+			});
+		});
+
+		it("should send response with mimetype when ." + methodName + " sends a ResponseBody", function(done) {
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb(null, new yarm.ResponseBody("Test content", "text/x-test-content"));
+			};
+
+			resource("test", def);
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(res.headers["content-type"], "text/x-test-content");
+				assert.strictEqual(body, "Test content");
+
+				done();
+			});
+		});
+
+		it("should send file ." + methodName + " sends a ResponseFile", function(done) {
+			var def = {};
+
+			Object.keys(additionalMethods).forEach(function(key) {
+				def[key] = additionalMethods[key];
+			});
+
+			def[methodName] = function() {
+				var req = arguments[0],
+					cb = arguments[callbackIndex];
+
+				cb(null, new yarm.ResponseFile(__dirname + "/testfile", "text/x-test-content"));
+			};
+
+			doRequest("/test", function(res, body) {
+				assert.strictEqual(res.headers["content-type"], "text/x-test-content");
+				assert.strictEqual(body, "Test file content");
+
+				done();
+			});
+
+			resource("test", def);
+		});
+	}
+
+	it("should pass the request object to ." + methodName, function(done) {
+		var def = {},
+			request;
+
+		Object.keys(additionalMethods).forEach(function(key) {
+			def[key] = additionalMethods[key];
+		});
 
 		def[methodName] = function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
 
+			request = req;
 			cb();
 		};
 
 		resource("test", def);
 
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(res.statusCode, 204);
-
-			done();
-		});
-	});
-
-	it("should respond with the result from ." + methodName, function(done) {
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, "Test content");
-		};
-
-		resource("test", def);
-
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(body, "Test content");
-			assert.strictEqual(res.statusCode, 200);
-
-			done();
-		});
-	});
-
-	it("should respond with the Buffer result from ." + methodName, function(done) {
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, new Buffer("Test content"));
-		};
-
-		resource("test", def);
-
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(body, "Test content");
-			assert.strictEqual(res.statusCode, 200);
-
-			done();
-		});
-	});
-
-	it("should respond with the readable stream result from ." + methodName, function(done) {
-		function TestStream(opt) {
-			Readable.call(this, opt);
-			this._done = false;
-		}
-
-		util.inherits(TestStream, Readable);
-
-		TestStream.prototype._read = function() {
-			if (!this._done) {
-				this.push("Test content");
-				this._done = true;
-			} else {
-				this.push(null);
-			}
-		};
-
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, new TestStream());
-		};
-
-		resource("test", def);
-
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(body, "Test content");
-			assert.strictEqual(res.statusCode, 200);
-
-			done();
-		});
-	});
-
-	it("should send response with mimetype when ." + methodName + " sends a ResponseBody", function(done) {
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, new yarm.ResponseBody("Test content", "text/x-test-content"));
-		};
-
-		resource("test", def);
-
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(res.headers["content-type"], "text/x-test-content");
-			assert.strictEqual(body, "Test content");
-
-			done();
-		});
-	});
-
-	it("should send file ." + methodName + " sends a ResponseFile", function(done) {
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, new yarm.ResponseFile(__dirname + "/testfile", "text/x-test-content"));
-		};
-
-		doRequest("/test", function(res, body) {
-			assert.strictEqual(res.headers["content-type"], "text/x-test-content");
-			assert.strictEqual(body, "Test file content");
-
-			done();
-		});
-
-		resource("test", def);
-	});
-
-	it("should pass the request object to ." + methodName, function(done) {
-		var def = {};
-
-		def[methodName] = function() {
-			var req = arguments[0],
-				cb = arguments[callbackIndex];
-
-			cb(null, req.param("foo"));
-		};
-
-		resource("test", def);
-
 		doRequest("/test?foo=bar", function(res, body) {
-			assert.strictEqual(body, "bar");
+			assert.strictEqual(request.param("foo"), "bar");
 
 			done();
 		});

@@ -13,11 +13,7 @@ var assert = require("assert"),
 	callbackTests = common.callbackTests;
 
 
-describe("Document resource", function() {
-	describe("GET", function() {
-		callbackTests("GET", it);
-	});
-
+describe("All resources", function() {
 	describe("PUT", function() {
 		callbackTests("PUT", it);
 
@@ -58,7 +54,79 @@ describe("Document resource", function() {
 		});
 	});
 
+	describe("POST", function() {
+		callbackTests("POST", it);
+	});
+
 	describe("DELETE", function() {
 		callbackTests("DELETE", it);
+	});
+});
+
+
+describe("Document resources", function() {
+	describe("GET", function() {
+		callbackTests("GET", it);
+	});
+});
+
+describe("Collection resources", function() {
+	describe("GET", function() {
+		callbackTests("COUNT", it);
+		callbackTests("LIST", it);
+
+		it("should send a JSON response with the results from .count and .list", function(done) {
+			resource("test", {
+				count: function(req, cb) {
+					cb(null, 42);
+				},
+
+				list: function(req, offset, limit, cb) {
+					cb(null, ["foo", "bar"]);
+				}
+			});
+
+			request.get("/test", function(res, body) {
+				var jbody = JSON.parse(body);
+
+				assert.deepEqual({
+					_count: 42,
+					_items: ["foo", "bar"]
+				}, jbody);
+
+				done();
+			});
+		});
+	});
+});
+
+describe("Hybrid resources", function() {
+	describe("GET", function() {
+		it("should only call .get when both .get, .list and .count are present", function(done) {
+			var called = [];
+
+			resource("test", {
+				get: function(req, cb) {
+					called.push("get");
+					cb();
+				},
+
+				count: function(req, cb) {
+					called.push("count");
+					cb();
+				},
+
+				list: function(req, offset, limit, cb) {
+					called.push("list");
+					cb();
+				}
+			});
+
+			request.get("/test", function(res, body) {
+				assert.deepEqual(["get"], called);
+
+				done();
+			});
+		});
 	});
 });
