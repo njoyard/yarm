@@ -158,7 +158,9 @@ number of resources in the collection as parameters.  The `list` method
 receives the request object, the requested offset and limit, and a callback
 as parameters, and should call the callback with an optional `Error` instance
 and an array corresponding to the requested items as parameters.  A limit of
-zero indicates that the client requests as many items as possible.
+zero indicates that the client requests as many items as possible.  Note that
+yarm will not check whether what you send from `list` abides by the requested
+offset and limit.  It won't even check whether you sent an actual array.
 
 When handling GET requests on collections, yarm will respond with a JSON
 object containing a `_count` key with the total collection item count, and a
@@ -474,9 +476,11 @@ meantime, here are some simple examples.
 
 ```javascript
 
-yarm.arrayResource("array", [1, 2, 3]);
+yarm.nativeResource("array", [1, 2, 3]);
 
-yarm.objectResource("object", { key: "value" });
+yarm.nativeResource("object", { key: "value" });
+
+yarm.nativeResource("number", 42);
 
 // Defined only when mongoose is present. All the options are ...optional.
 yarm.mongooseResource("model", Model, {

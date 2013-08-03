@@ -108,22 +108,23 @@ describe("Hybrid resources", function() {
 			resource("test", {
 				get: function(req, cb) {
 					called.push("get");
-					cb();
+					cb(null, "foo");
 				},
 
 				count: function(req, cb) {
 					called.push("count");
-					cb();
+					cb(null, 42);
 				},
 
 				list: function(req, offset, limit, cb) {
 					called.push("list");
-					cb();
+					cb(null, ["bar"]);
 				}
 			});
 
 			request.get("/test", function(res, body) {
 				assert.deepEqual(["get"], called);
+				assert.strictEqual("foo", body);
 
 				done();
 			});
