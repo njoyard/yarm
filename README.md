@@ -474,12 +474,12 @@ meantime, here are some simple examples.
 
 ```javascript
 
-yarn.arrayResource("array", [1, 2, 3]);
+yarm.arrayResource("array", [1, 2, 3]);
 
-yarn.objectResource("object", { key: "value" });
+yarm.objectResource("object", { key: "value" });
 
 // Defined only when mongoose is present. All the options are ...optional.
-yarn.mongooseResource("model", Model, {
+yarm.mongooseResource("model", Model, {
 	sort: { field: "asc" },
 
 	query: function() {
