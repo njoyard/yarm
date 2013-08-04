@@ -5,7 +5,7 @@ Yet Another REST Module for node.js and Express.
 
 [![Build Status](https://travis-ci.org/njoyard/yarm.png)](http://travis-ci.org/njoyard/yarm)
 
-**Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
+**Table of Contents**
 
 - [Usage](#usage)
 - [Defining resources](#defining-resources)
@@ -535,7 +535,7 @@ $ curl http://localhost/rest/model
 ```
 
 Resources created this way are collections.  You can request individual
-documents with their _id field.  Note that the `_href` field is automatically
+documents with their `_id` field.  Note that the `_href` field is automatically
 generated on each request.
 
 ```sh
@@ -583,7 +583,7 @@ with mongoose Models.
 This is the toplevel resource defined to access the underlying mongodb
 Collection.  It supports GET requests as described above, but you can also add
 new documents to the collection with POST requests.  The default handler will
-call Model#create with the request body.
+call `Model#create` with the request body.
 
 Individual documents are accessible as subresources.
 
@@ -611,8 +611,8 @@ GET requests on DocumentArray resources work a lot like those on the toplevel
 Model resource.  They support the `query` querystring parameter with the same
 syntax, but please note that filtering in this case is handled by yarm, not
 by mongoose queries.  The whole DocumentArray is always fetched, which can be an
-issue when dealing with large DocumentArrays.  You may want to use aggregates
-instead in this case.
+issue when dealing with large DocumentArrays.  You may want to use 
+[aggregates](#aggregate-resources) instead in this case.
 
 POST requests on DocumentArray resources will attempt to add a new subdocument 
 by pushing the request body on the DocumentArray and saving the owner document.
@@ -636,7 +636,7 @@ Schema.virtual("custom").get(function() {
 yarm.mongooseResource("model", Model, {
 	toObject: {
 		transform: function(doc, ret, options) {
-			ret.image = new yarm.ResponseFile(this.imagePath, "image/png");
+			ret.image = new yarm.ResponseFile(doc.imagePath, "image/png");
 		}
 	}
 })
@@ -726,7 +726,7 @@ yarm.mongooseResource("model", Model, {
 });
 ```
 
-You can use a "$" character in path patterns to match any single path element.
+You can use a `$` character in path patterns to match any single path element.
 
 ```javascript
 yarm.mongooseResource("model", Model, {
@@ -741,7 +741,7 @@ yarm.mongooseResource("model", Model, {
 });
 ```
 
-You can also use a "*" character to match one or more path elements.
+You can also use a `*` character to match one or more path elements.
 
 ```javascript
 yarm.mongooseResource("nodelete", Model, {
