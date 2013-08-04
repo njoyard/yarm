@@ -5,6 +5,30 @@ Yet Another REST Module for node.js and Express.
 
 [![Build Status](https://travis-ci.org/njoyard/yarm.png)](http://travis-ci.org/njoyard/yarm)
 
+**Table of Contents**
+
+	- [Usage](#usage)
+	- [Defining resources](#defining-resources)
+		- [Handling GET and HEAD requests](#handling-get-and-head-requests)
+			- [Documents](#documents)
+			- [Collections](#collections)
+		- [Handling DELETE requests](#handling-delete-requests)
+		- [Handling PUT and PATCH requests](#handling-put-and-patch-requests)
+		- [Handling POST requests](#handling-post-requests)
+		- [Sub-resources](#sub-resources)
+	- [Built-in resource definition helpers](#built-in-resource-definition-helpers)
+		- [Native resources](#native-resources)
+		- [Mongoose resources](#mongoose-resources)
+			- [Basics](#basics)
+			- [Subresource types](#subresource-types)
+			- [Options](#options)
+				- [`query`](#query)
+				- [`sort`](#sort)
+				- [`toObject`](#toobject)
+				- [`key`](#key)
+	- [Miscellaneous](#miscellaneous)
+		- [Removing resources](#removing-resources)
+		- [Calling callbacks](#calling-callbacks)
 
 Usage
 -----
@@ -205,7 +229,7 @@ Note that when a `get` method also exists on the resource definition, it will
 take precedence over the `count` and `list` methods and the resource will be
 handled as a document.
 
-#### Handling DELETE requests
+### Handling DELETE requests
 
 Deleting a resource is enabled by defining a `del` method.  This method has the
 same prototype as the `get` method.  You may pass content to the callback as its
@@ -232,7 +256,7 @@ yarm.resource("deletable", {
 });
 ```
 
-#### Handling PUT and PATCH requests
+### Handling PUT and PATCH requests
 
 Replacing and updating a resource is enabled by defining a `put` method.  This
 method will receive the request object, a boolean indicating whether this is a
@@ -298,7 +322,7 @@ yarm.resource("patchOnly", {
 });
 ```
 
-#### Handling POST requests
+### Handling POST requests
 
 To enable POST requests on a resource, define a `post` method.  It will
 receive the request object and a callback to call with an optional `Error`
@@ -464,31 +488,165 @@ $ curl http://localhost/rest/greeting/french/alice
 Built-in resource definition helpers
 ------------------------------------
 
-yarm comes with tools to make defining common resource types easier.
-Those will be documented more extensively in the near future; in the
-meantime, here are some simple examples.
+### Native resources
 
 ```javascript
-
 yarm.nativeResource("array", [1, 2, 3]);
 
 yarm.nativeResource("object", { key: "value" });
 
 yarm.nativeResource("number", 42);
+```
 
-// Defined only when mongoose is present. All the options are ...optional.
-yarm.mongooseResource("model", Model, {
-	sort: { field: "asc" },
+### Mongoose resources
 
+#### Basics
+
+`yarm.mongooseResource()` enables you to automatically define a collection
+resource from a mongoose Model.  Note that this helper is only available
+when mongoose is present.
+
+```javascript
+yarm.mongooseResource("model", Model);
+```
+
+```sh
+$ curl http://localhost/rest/model
+{
+	"_count": 1,
+	"_items": [
+		{
+			"_id": "51fc0639a6c35ee82600019d",
+			"_href": "http://localhost/rest/model/51fc0639a6c35ee82600019d",
+			"field": "value",
+			"subDoc: {
+				"field": "value"
+			}
+		}
+	]
+}
+```
+
+Resources created this way are collections.  You can request individual 
+documents with their _id field.  Note that the `_href` field is automatically
+generated on each request.
+
+```sh
+$ curl http://localhost/rest/model/51fc0639a6c35ee82600019d
+{
+	"_id": "51fc0639a6c35ee82600019d",
+	"_href": "http://localhost/rest/model/51fc0639a6c35ee82600019d",
+	"field": "value",
+	"subDoc": {
+		"field": "subvalue"
+	}
+}
+```
+
+More generally, `yarm.mongooseResource` enables requesting the whole document
+tree at any depth.
+
+```sh
+$ curl http://localhost/rest/model/51fc0639a6c35ee82600019d/field
+value
+$ curl http://localhost/rest/model/51fc0639a6c35ee82600019d/subDoc
+{ "field": "subvalue" }
+$ curl http://localhost/rest/model/51fc0639a6c35ee82600019d/subDoc/field
+subValue
+```
+
+#### Subresource types
+
+#### Options
+
+`yarm.mongooseResource` accepts an options object as its third parameter to
+customize its behaviour. The following options are available:
+
+##### `query`
+
+By default, `yarm.mongooseResource` queries mongoose collections by calling
+`Model#find()`.  You can override this by passing a function that returns
+a mongoose Query as the `query` option.  You may need this for example when
+subdocuments need populating, or when you want to filter available documents.
+
+```javascript
+yarm.resource("populated", Model, {
 	query: function() {
-		return Model.find().populate("subdocument");
-	},
+		return Model.find().populate("subdoc");
+	}
+});
 
-	toObject: {
-		virtuals: true
+yarm.resource("filtered", Model, {
+	query: function() {
+		return Model.find({ restAvailable: true });
 	}
 });
 ```
+
+##### `sort`
+
+You can pass a mongoose/mongodb sort operator as the `sort` option.  Note that
+the same result can be achieved with the `query` option.
+
+```javascript
+yarm.resource("sorted", Model, {
+	sort: { field: "desc" }
+});
+
+yarm.resource("sorted", Model, {
+	query: function() {
+		return Model.find().sort({ field: "desc" });
+	}
+});
+```
+
+##### `toObject`
+
+`yarm.mongooseResource` calls the `toObject` method on mongoose documents before
+returning them.  You can tell it which `toObject` options to use (see mongoose
+documentation for the available options).
+
+```javascript
+yarm.resource("withVirtuals", Model, {
+	toObject: { virtuals: true }
+});
+```
+
+##### `key`
+
+By default, `yarm.mongooseResource` uses the `_id` field to identifty individual
+documents in the collection.  You may want to avoid ObjectIDs in your REST URLs,
+in which case you can pass an alternate field name to use as the `key` option.
+
+```javascript
+yarm.resource("model", Model, {
+	key: "name"
+});
+```
+
+```sh
+$ curl http://localhost/rest/model
+{
+	"_count": 1,
+	"_items": [
+		{
+			"_id": "51fc0639a6c35ee82600019d",
+			"_href": "http://localhost/rest/model/foo",
+			"name": "foo",
+			"field": "value"
+		}
+	]
+}
+$ curl http://localhost/rest/model/foo
+{
+	"_id": "51fc0639a6c35ee82600019d",
+	"_href": "http://localhost/rest/model/foo",
+	"name": "foo",
+	"field": "value"
+}
+```
+
+When used that way, 
 
 Miscellaneous
 -------------
