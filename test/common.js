@@ -413,10 +413,31 @@ function callbackTests(method, it) {
 }
 
 
+function composeTests(array) {
+	if (array.length === 1) {
+		return array[0];
+	} else {
+		var first = array.shift(),
+			second = array.shift();
+
+		array.unshift(function(done) {
+			function firstDone() {
+				second(done);
+			}
+
+			first(firstDone);
+		});
+
+		return composeTests(array);
+	}
+}
+
+
 module.exports = {
 	request: request,
 	resource: resource,
 	callbackTests: callbackTests,
-	allMethods: allMethods
+	allMethods: allMethods,
+	composeTests: composeTests
 };
 

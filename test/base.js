@@ -31,7 +31,7 @@ describe("All resources", function() {
 			request.put("/test", function(res, body) {
 				assert.strictEqual(false, value);
 				done();
-			})
+			});
 		});
 	});
 
@@ -51,7 +51,7 @@ describe("All resources", function() {
 			request.patch("/test", function(res, body) {
 				assert.strictEqual(true, value);
 				done();
-			})
+			});
 		});
 	});
 
