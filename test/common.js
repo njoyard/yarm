@@ -51,7 +51,7 @@ function request(method, path, data, callback) {
 request.get = request.bind(null, "GET");
 request.put = request.bind(null, "PUT");
 request.post = request.bind(null, "POST");
-request.del = request.bind(null, "DEL");
+request.del = request.bind(null, "DELETE");
 request.patch = request.bind(null, "PATCH");
 
 
@@ -60,6 +60,28 @@ function resource(name, definition) {
 	yarm.resource.remove(name);
 	yarm.resource(name, definition);
 }
+
+
+/* Define tests for all methods
+	init is called at the beginning of each test with an empty context object
+	callback is called when receiving the response for each test, it receives
+		the response, the body, the context object and a done function.
+*/
+function allMethods(it, init, path, callback) {
+	var call = ["get", "put", "post", "del", "patch"];
+
+	call.forEach(function(method) {
+		it("(" + method.toUpperCase() + " method)", function(done) {
+			var ctx = {};
+			init(ctx);
+
+			request[method](path, function(res, body) {
+				callback(res, body, ctx, done);
+			});
+		});
+	});
+}
+
 
 
 /* Data for standard callback tests
@@ -394,6 +416,7 @@ function callbackTests(method, it) {
 module.exports = {
 	request: request,
 	resource: resource,
-	callbackTests: callbackTests
+	callbackTests: callbackTests,
+	allMethods: allMethods
 };
 
