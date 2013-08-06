@@ -50,10 +50,16 @@ describe("Mongoose resources", function() {
 	});
 
 
-	// Disconnect once after all tests
+	// Drop database and disconnect once after all tests
 	after(function(done) {
-		mongoose.disconnect(function(err) {
-			done(err);
+		mongoose.connection.db.dropDatabase(function(err) {
+			if (err) {
+				done(err);
+			} else {
+				mongoose.disconnect(function(err) {
+					done(err);
+				});
+			}
 		});
 	});
 
@@ -104,9 +110,9 @@ describe("Mongoose resources", function() {
 	});
 
 
-	// Drop database after each test
+	// Drop data after each test
 	afterEach(function(done) {
-		mongoose.connection.db.dropDatabase(function(err) {
+		TestModel.remove(function(err) {
 			done(err);
 		});
 	});
@@ -202,6 +208,8 @@ describe("Mongoose resources", function() {
 			});
 		});
 
+		it("should GET fields in subdocuments");
+
 		it("should GET DocumentArrays as collections", function(done) {
 			var item = testData[3];
 			mongooseResource("test", TestModel);
@@ -253,5 +261,7 @@ describe("Mongoose resources", function() {
 				};
 			}))
 		);
+
+		it("should GET fields in documents in DocumentArrays");
 	});
 });

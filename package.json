@@ -23,6 +23,7 @@
   "devDependencies": {
     "mocha": "*",
     "express": "*",
-    "mongoose": "*"
+    "mongoose": "*",
+    "mongodb": "*"
   }
 }
