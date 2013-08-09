@@ -14,6 +14,7 @@ var http = require("http"),
 
 
 /* Test app setup */
+app.use(express.bodyParser());
 app.use("/rest", yarm());
 app.listen(8081);
 
@@ -43,6 +44,11 @@ function request(method, path, data, callback) {
 			callback(res, body);
 		});
 	});
+
+	if (data) {
+		req.setHeader("Content-Type", "application/json");
+		data = JSON.stringify(data);
+	}
 
 	req.end(data);
 }
@@ -89,16 +95,16 @@ function allMethods(it, init, path, callback) {
 	"cbIndex" is the argument index of the callback passed to "name"
 */
 var methods = {
-	"GET": { name: "get", cbIndex: 1 },
-	"PUT": { name: "put", cbIndex: 2 },
-	"PATCH": { name: "put", cbIndex: 2 },
-	"POST": { name: "post", cbIndex: 1 },
-	"DELETE": { name: "del", cbIndex: 1 }
+	"GET": { name: "get", cbIndex: 1, noContent: { code: 204, msg: "" } },
+	"PUT": { name: "put", cbIndex: 2, noContent: { code: 204, msg: "" } },
+	"PATCH": { name: "put", cbIndex: 2, noContent: { code: 204, msg: "" } },
+	"DELETE": { name: "del", cbIndex: 1, noContent: { code: 204, msg: "" } },
+	"POST": { name: "post", cbIndex: 1, noContent: { code: 201, msg: "Created" } },
 };
 
 /* Describe standard tests valid for all methods */
 function callbackTests(method, it) {
-	var methodName, doRequest, callbackIndex,
+	var methodName, doRequest, callbackIndex, noContent,
 		doResultTests = true,
 		additionalMethods = {};
 
@@ -129,6 +135,7 @@ function callbackTests(method, it) {
 			methodName = methods[method].name;
 			doRequest = request.bind(null, method);
 			callbackIndex = methods[method].cbIndex;
+			noContent = methods[method].noContent;
 			break;
 	}
 
@@ -143,7 +150,7 @@ function callbackTests(method, it) {
 		resource("test", def);
 
 		doRequest("/test", function(res, body) {
-			assert.strictEqual(body, "Not allowed");
+			assert.strictEqual(body, "Method not allowed");
 			assert.strictEqual(res.statusCode, 405);
 
 			done();
@@ -226,7 +233,7 @@ function callbackTests(method, it) {
 	});
 
 	if (doResultTests) {
-		it("should respond with 204 No content when ." + methodName + " sends nothing", function(done) {
+		it("should respond with " + noContent.code + " " + noContent.msg + " when ." + methodName + " sends nothing", function(done) {
 			var def = {};
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -243,7 +250,8 @@ function callbackTests(method, it) {
 			resource("test", def);
 
 			doRequest("/test", function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
+				assert.strictEqual(res.statusCode, noContent.code);
+				assert.strictEqual(body, noContent.msg);
 
 				done();
 			});
