@@ -221,16 +221,16 @@ describe("Mongoose resources", function() {
 
 
 	describe("Model resources", function() {
-		it("should GET collections", function(done) {
-			mongooseResource("test", TestModel);
+		describe("Model collections", function() {
+			it("should GET collections", function(done) {
+				mongooseResource("test", TestModel);
 
-			request.get("/test", function(res, body) {
-				assertCollection(res, body, ["foo", "bar", "sub", "arr"]);
-				done();
+				request.get("/test", function(res, body) {
+					assertCollection(res, body, ["foo", "bar", "sub", "arr"]);
+					done();
+				});
 			});
-		});
 
-		describe("Queries on collections", function() {
 			function queryTest(query, expected, done) {
 				mongooseResource("test", TestModel);
 
@@ -269,281 +269,376 @@ describe("Mongoose resources", function() {
 				"should allow queries with both AND and OR operators",
 				queryTest.bind(null, "field1:/o/ OR field1:/a/ AND field2:/a/", ["foo", "bar"])
 			);
-		});
 
-		it(
-			"should GET documents in collection",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel);
+			it("should POST new documents to collections", function(done) {
+				mongooseResource("test", TestModel);
+				var doc = {
+					field1: "add",
+					field2: "hello",
+					subDoc: {
+						field: "world"
+					},
+					docArray: [
+						{ field: "a" },
+						{ field: "b" }
+					]
+				};
 
-					request.get("/test/" + item._id, function(res, body) {
-						var doc = JSON.parse(body);
+				request.post("/test", doc, function(res, body) {
+					var rdoc = JSON.parse(body);
+					assert.strictEqual(res.statusCode, 200);
 
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(typeof doc, "object");
+					// Check addition to mongoose collection first
+					TestModel.findOne({ field1: "add" }, function(err, item) {
+						assert.ifError(err);
+						assert(item);
 
-						/* Remove additional properties before comparing */
-						delete doc.__v;
-						delete doc._href;
-						if (doc.docArray) {
-							doc.docArray.forEach(function(sub) {
-								delete sub._href;
-							});
-						}
+						// Add IDs to original doc
+						doc._id = item._id.toString();
+						item.docArray.forEach(function(subitem, index) {
+							doc.docArray[index]._id = subitem._id.toString();
+						});
 
-						assert.deepEqual(doc, item);
+						delete rdoc.__v;
 
+						// Check returned document
+						assert.deepEqual(rdoc, doc);
 						done();
 					});
-				};
-			}))
-		);
-
-		it(
-			"should allow setting mongoose toObject options",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel, {
-						toObject: { virtuals: true }
-					});
-
-					request.get("/test/" + item._id, function(res, body) {
-						var doc = JSON.parse(body);
-
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(typeof doc, "object");
-
-						/* Remove additional properties before comparing */
-						delete doc.__v;
-						delete doc._href;
-						if (doc.docArray) {
-							doc.docArray.forEach(function(sub) {
-								delete sub._href;
-							});
-						}
-
-						assert.strictEqual(
-							doc.description,
-							"Document " + item.field1 + " with " + item.docArray.length + " sub-documents"
-						);
-
-						done();
-					});
-				};
-			}))
-		);
-
-		it("should 404 on nonexistent documents", function(done) {
-			mongooseResource("test", TestModel);
-
-			request.get("/test/nonexistent", function(res, body) {
-				assert.strictEqual(res.statusCode, 404);
-				assert.strictEqual(body, "Not found");
-
-				done();
-			});
-		});
-
-		it("should DELETE documents", function(done) {
-			var item = testData[0];
-			mongooseResource("test", TestModel);
-
-			request.del("/test/" + item._id, function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
-
-				TestModel.find({ _id: item._id }, function(err, items) {
-					assert.ifError(err);
-					assert.strictEqual(items.length, 0);
-					done();
 				});
 			});
 		});
 
-		it(
-			"should allow specifying an alternate primary key",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel, { key: "field1" });
+		describe("Documents", function() {
+			it(
+				"should GET documents in collection",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
 
-					request.get("/test/" + item.field1, function(res, body) {
-						var doc = JSON.parse(body);
+						request.get("/test/" + item._id, function(res, body) {
+							var doc = JSON.parse(body);
 
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(typeof doc, "object");
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(typeof doc, "object");
 
-						/* Remove additional properties before comparing */
-						delete doc.__v;
-						delete doc._href;
-						if (doc.docArray) {
-							doc.docArray.forEach(function(sub) {
-								delete sub._href;
-							});
-						}
+							/* Remove additional properties before comparing */
+							delete doc.__v;
+							delete doc._href;
+							if (doc.docArray) {
+								doc.docArray.forEach(function(sub) {
+									delete sub._href;
+								});
+							}
 
-						assert.deepEqual(doc, item);
+							assert.deepEqual(doc, item);
 
-						done();
-					});
-				};
-			}))
-		);
-
-		it(
-			"should GET fields from documents",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel);
-
-					request.get("/test/" + item._id + "/field1", function(res, body) {
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(body, item.field1);
-
-						done();
-					});
-				};
-			}))
-		);
-
-		it("should 404 on nonexistent document fields", function(done) {
-			mongooseResource("test", TestModel);
-
-			request.get("/test/" + testData[0]._id + "/nonexistent", function(res, body) {
-				assert.strictEqual(res.statusCode, 404);
-				assert.strictEqual(body, "Not found");
-
-				done();
-			});
-		});
-
-		it(
-			"should PUT field values in documents",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel);
-
-					request.put("/test/" + item._id + "/field1", { _value: "newValue" }, function(res, body) {
-						assert.strictEqual(res.statusCode, 204);
-
-						TestModel.findById(item._id, function(err, doc) {
-							assert.ifError(err);
-							assert.strictEqual(doc.field1, "newValue");
 							done();
 						});
-					});
-				};
-			}))
-		);
+					};
+				}))
+			);
 
-		it(
-			"should DELETE field values in documents",
-			composeTests(testData.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel);
+			it(
+				"should allow setting mongoose toObject options",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel, {
+							toObject: { virtuals: true }
+						});
 
-					request.del("/test/" + item._id + "/field1", function(res, body) {
-						assert.strictEqual(res.statusCode, 204);
+						request.get("/test/" + item._id, function(res, body) {
+							var doc = JSON.parse(body);
 
-						TestModel.findById(item._id, function(err, doc) {
-							assert.strictEqual(doc.field1, undefined);
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(typeof doc, "object");
+
+							/* Remove additional properties before comparing */
+							delete doc.__v;
+							delete doc._href;
+							if (doc.docArray) {
+								doc.docArray.forEach(function(sub) {
+									delete sub._href;
+								});
+							}
+
+							assert.strictEqual(
+								doc.description,
+								"Document " + item.field1 + " with " + item.docArray.length + " sub-documents"
+							);
+
 							done();
 						});
-					});
-				};
-			}))
-		);
+					};
+				}))
+			);
 
-		it("should GET subdocuments", function(done) {
-			var item = testData[2];
-			mongooseResource("test", TestModel);
+			it("should 404 on nonexistent documents", function(done) {
+				mongooseResource("test", TestModel);
 
-			request.get("/test/" + item._id + "/subDoc", function(res, body) {
-				var doc = JSON.parse(body);
+				request.get("/test/nonexistent", function(res, body) {
+					assert.strictEqual(res.statusCode, 404);
+					assert.strictEqual(body, "Not found");
 
-				assert.strictEqual(res.statusCode, 200);
-				assert.strictEqual(typeof doc, "object");
-
-				delete doc._href;
-				assert.deepEqual(doc, item.subDoc);
-
-				done();
-			});
-		});
-
-		it("should DELETE subdocuments", function(done) {
-			var item = testData[2];
-			mongooseResource("test", TestModel);
-
-			request.del("/test/" + item._id + "/subDoc", function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
-
-				TestModel.findById(item._id, function(err, doc) {
-					assert.ifError(err);
-
-					// Mongoose limitation: subDoc is still present but empty
-					assert.strictEqual(doc.subDoc.field, undefined);
 					done();
 				});
 			});
-		});
 
-		it("should GET fields in subdocuments", function(done) {
-			var item = testData[2];
-			mongooseResource("test", TestModel);
+			it(
+				"should allow specifying an alternate primary key",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel, { key: "field1" });
 
-			request.get("/test/" + item._id + "/subDoc/field", function(res, body) {
-				assert.strictEqual(res.statusCode, 200);
-				assert.deepEqual(body, item.subDoc.field);
+						request.get("/test/" + item.field1, function(res, body) {
+							var doc = JSON.parse(body);
 
-				done();
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(typeof doc, "object");
+
+							/* Remove additional properties before comparing */
+							delete doc.__v;
+							delete doc._href;
+							if (doc.docArray) {
+								doc.docArray.forEach(function(sub) {
+									delete sub._href;
+								});
+							}
+
+							assert.deepEqual(doc, item);
+
+							done();
+						});
+					};
+				}))
+			);
+
+			it("should DELETE documents", function(done) {
+				var item = testData[0];
+				mongooseResource("test", TestModel);
+
+				request.del("/test/" + item._id, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.find({ _id: item._id }, function(err, items) {
+						assert.ifError(err);
+						assert.strictEqual(items.length, 0);
+						done();
+					});
+				});
+			});
+
+			it("should PUT documents", function(done) {
+				var item = testData[0];
+				mongooseResource("test", TestModel);
+
+				request.put("/test/" + item._id, { field2: "bar" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.field1, "foo");
+						assert.strictEqual(doc.field2, "bar");
+						done();
+					});
+				});
 			});
 		});
 
-		it("should PUT field values in subdocuments", function(done) {
-			var item = testData[2];
-			mongooseResource("test", TestModel);
+		describe("Document fields", function() {
+			it(
+				"should GET fields from documents",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
 
-			request.put("/test/" + item._id + "/subDoc/field", { _value: "newValue" }, function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
+						request.get("/test/" + item._id + "/field1", function(res, body) {
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(body, item.field1);
 
-				TestModel.findById(item._id, function(err, doc) {
-					assert.ifError(err);
-					assert.strictEqual(doc.subDoc.field, "newValue");
+							done();
+						});
+					};
+				}))
+			);
+
+			it("should 404 on nonexistent document fields", function(done) {
+				mongooseResource("test", TestModel);
+
+				request.get("/test/" + testData[0]._id + "/nonexistent", function(res, body) {
+					assert.strictEqual(res.statusCode, 404);
+					assert.strictEqual(body, "Not found");
+
 					done();
 				});
 			});
+
+			it(
+				"should DELETE field values in documents",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
+
+						request.del("/test/" + item._id + "/field1", function(res, body) {
+							assert.strictEqual(res.statusCode, 204);
+
+							TestModel.findById(item._id, function(err, doc) {
+								assert.strictEqual(doc.field1, undefined);
+								done();
+							});
+						});
+					};
+				}))
+			);
+
+			it(
+				"should PUT field values in documents",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
+
+						request.put("/test/" + item._id + "/field1", { _value: "newValue" }, function(res, body) {
+							assert.strictEqual(res.statusCode, 204);
+
+							TestModel.findById(item._id, function(err, doc) {
+								assert.ifError(err);
+								assert.strictEqual(doc.field1, "newValue");
+								done();
+							});
+						});
+					};
+				}))
+			);
 		});
 
-		it("should GET DocumentArrays as collections", function(done) {
-			var item = testData[3];
-			mongooseResource("test", TestModel);
+		describe("Subdocuments", function() {
+			it("should GET subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
 
-			request.get("/test/" + item._id + "/docArray", function(res, body) {
-				var data = JSON.parse(body);
+				request.get("/test/" + item._id + "/subDoc", function(res, body) {
+					var doc = JSON.parse(body);
 
-				assert.strictEqual(res.statusCode, 200);
-				assert.strictEqual(typeof data, "object");
-				assert.strictEqual(data._count, item.docArray.length);
-				assert(Array.isArray(data._items));
-				assert.strictEqual(data._items.length, item.docArray.length);
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(typeof doc, "object");
 
-				item.docArray.forEach(function(doc) {
-					var found = false;
+					delete doc._href;
+					assert.deepEqual(doc, item.subDoc);
 
-					data._items.forEach(function(rdoc) {
-						if (rdoc.field1 === doc.field1) {
-							found = true;
-						}
-					});
-
-					assert(found);
+					done();
 				});
+			});
 
-				done();
+			it("should DELETE subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
+
+				request.del("/test/" + item._id + "/subDoc", function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+
+						// Mongoose limitation: subDoc is still present but empty
+						assert.strictEqual(doc.subDoc.field, undefined);
+						done();
+					});
+				});
+			});
+
+			it("should PUT subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
+
+				request.put("/test/" + item._id + "/subDoc", { field: "bar" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.subDoc.field, "bar");
+
+						done();
+					});
+				});
+			});
+		});
+		
+		describe("Subdocument fields", function() {
+			it("should GET fields in subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
+
+				request.get("/test/" + item._id + "/subDoc/field", function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.deepEqual(body, item.subDoc.field);
+
+					done();
+				});
+			});
+
+			it("should DELETE fields in subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
+
+				request.del("/test/" + item._id + "/subDoc/field", function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.subDoc.field, undefined);
+
+						done();
+					});
+				});
+			});
+
+
+			it("should PUT field values in subdocuments", function(done) {
+				var item = testData[2];
+				mongooseResource("test", TestModel);
+
+				request.put("/test/" + item._id + "/subDoc/field", { _value: "newValue" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.subDoc.field, "newValue");
+						done();
+					});
+				});
 			});
 		});
 
-		describe("Queries on DocumentArray collections", function() {
+		describe("DocumentArray collections", function() {
+			it("should GET DocumentArrays as collections", function(done) {
+				var item = testData[3];
+				mongooseResource("test", TestModel);
+
+				request.get("/test/" + item._id + "/docArray", function(res, body) {
+					var data = JSON.parse(body);
+
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(typeof data, "object");
+					assert.strictEqual(data._count, item.docArray.length);
+					assert(Array.isArray(data._items));
+					assert.strictEqual(data._items.length, item.docArray.length);
+
+					item.docArray.forEach(function(doc) {
+						var found = false;
+
+						data._items.forEach(function(rdoc) {
+							if (rdoc.field1 === doc.field1) {
+								found = true;
+							}
+						});
+
+						assert(found);
+					});
+
+					done();
+				});
+			});
+
 			function queryTest(query, expected, done) {
 				var item = testData[3];
 				mongooseResource("test", TestModel);
@@ -583,108 +678,164 @@ describe("Mongoose resources", function() {
 				"should allow queries with both AND and OR operators",
 				queryTest.bind(null, "field:/o/ OR field:/z/ AND field:/^b/", ["foo", "baz"])
 			);
+
+			it("should POST new documents to DocumentArray collections", function(done) {
+				var item = testData[3];
+				mongooseResource("test", TestModel);
+
+				request.post("/test/" + item._id + "/docArray", { field: "bang" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 201);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+
+						var subs = doc.docArray.filter(function(sub) {
+							return sub.field === "bang";
+						});
+
+						assert.strictEqual(subs.length, 1);
+						done();
+					});
+				});
+			});
 		});
 
-		it("should GET documents in DocumentArrays",
-			composeTests(testData[3].docArray.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel);
+		
+		describe("DocumentArray documents", function() {
+			it("should GET documents in DocumentArrays",
+				composeTests(testData[3].docArray.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
 
-					request.get("/test/" + testData[3]._id + "/docArray/" + item._id, function(res, body) {
-						var doc = JSON.parse(body);
+						request.get("/test/" + testData[3]._id + "/docArray/" + item._id, function(res, body) {
+							var doc = JSON.parse(body);
 
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(typeof doc, "object");
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(typeof doc, "object");
 
-						/* Remove additional properties before comparing */
-						delete doc.__v;
-						delete doc._href;
+							/* Remove additional properties before comparing */
+							delete doc.__v;
+							delete doc._href;
 
-						assert.deepEqual(doc, item);
+							assert.deepEqual(doc, item);
+
+							done();
+						});
+					};
+				}))
+			);
+
+			it(
+				"should allow specifying an alternate primary key on collection paths",
+				composeTests(testData[3].docArray.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel, {
+							key: {
+								"test/$/docArray": "field"
+							}
+						});
+
+						request.get("/test/" + testData[3]._id + "/docArray/" + item.field, function(res, body) {
+							var doc = JSON.parse(body);
+
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(typeof doc, "object");
+
+							/* Remove additional properties before comparing */
+							delete doc.__v;
+							delete doc._href;
+
+							assert.deepEqual(doc, item);
+
+							done();
+						});
+					};
+				}))
+			);
+
+			it("should DELETE documents in DocumentArray collections", function(done) {
+				var item = testData[3],
+					sub = item.docArray[0];
+
+				mongooseResource("test", TestModel);
+
+				request.del("/test/" + item._id + "/docArray/" + sub._id, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.docArray.id(sub._id), null);
 
 						done();
 					});
-				};
-			}))
-		);
+				});
+			});
 
-		it(
-			"should allow specifying an alternate primary key on collection paths",
-			composeTests(testData[3].docArray.map(function(item) {
-				return function(done) {
-					mongooseResource("test", TestModel, {
-						key: {
-							"test/$/docArray": "field"
-						}
-					});
+			it("should PUT documents in DocumentArray collections", function(done) {
+				var item = testData[3],
+					sub = item.docArray[0];
 
-					request.get("/test/" + testData[3]._id + "/docArray/" + item.field, function(res, body) {
-						var doc = JSON.parse(body);
+				mongooseResource("test", TestModel);
 
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(typeof doc, "object");
+				request.put("/test/" + item._id + "/docArray/" + sub._id, { field: "bang" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
 
-						/* Remove additional properties before comparing */
-						delete doc.__v;
-						delete doc._href;
-
-						assert.deepEqual(doc, item);
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.docArray.id(sub._id).field, "bang");
 
 						done();
 					});
-				};
-			}))
-		);
+				});
+			});
+		});
+		
 
-		it("should GET fields in documents in DocumentArrays",
-			composeTests(testData[3].docArray.map(function(item, index) {
-				return function(done) {
-					mongooseResource("test", TestModel);
+		describe("DocumentArray document fields", function() {
+			it("should GET fields in documents in DocumentArrays",
+				composeTests(testData[3].docArray.map(function(item, index) {
+					return function(done) {
+						mongooseResource("test", TestModel);
 
-					request.get("/test/" + testData[3]._id + "/docArray/" + item._id + "/field", function(res, body) {
-						assert.strictEqual(res.statusCode, 200);
-						assert.strictEqual(body, testData[3].docArray[index].field);
+						request.get("/test/" + testData[3]._id + "/docArray/" + item._id + "/field", function(res, body) {
+							assert.strictEqual(res.statusCode, 200);
+							assert.strictEqual(body, testData[3].docArray[index].field);
+
+							done();
+						});
+					};
+				}))
+			);
+
+			it("should DELETE fields in documents in DocumentArrays", function(done) {
+				var item = testData[3],
+					sub = item.docArray[0];
+
+				request.del("/test/" + item._id + "/docArray/" + sub._id + "/field", function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.docArray.id(sub._id).field, undefined);
 
 						done();
 					});
-				};
-			}))
-		);
+				});
+			});
 
-		it("should POST new documents to collections", function(done) {
-			mongooseResource("test", TestModel);
-			var doc = {
-				field1: "add",
-				field2: "hello",
-				subDoc: {
-					field: "world"
-				},
-				docArray: [
-					{ field: "a" },
-					{ field: "b" }
-				]
-			};
+			it("should PUT fields in documents in DocumentArrays", function(done) {
+				var item = testData[3],
+					sub = item.docArray[0];
 
-			request.post("/test", doc, function(res, body) {
-				var rdoc = JSON.parse(body);
-				assert.strictEqual(res.statusCode, 200);
+				request.put("/test/" + item._id + "/docArray/" + sub._id + "/field", { _value: "bang" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
 
-				// Check addition to mongoose collection first
-				TestModel.findOne({ field1: "add" }, function(err, item) {
-					assert.ifError(err);
-					assert(item);
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.docArray.id(sub._id).field, "bang");
 
-					// Add IDs to original doc
-					doc._id = item._id.toString();
-					item.docArray.forEach(function(subitem, index) {
-						doc.docArray[index]._id = subitem._id.toString();
+						done();
 					});
-
-					delete rdoc.__v;
-
-					// Check returned document
-					assert.deepEqual(rdoc, doc);
-					done();
 				});
 			});
 		});
