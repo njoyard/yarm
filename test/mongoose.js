@@ -56,10 +56,15 @@ var testData = [
  */
 
 
-/* Resource definition helper */
+/* Resource definition helpers */
 function mongooseResource(name, model, options) {
 	yarm.resource.remove(name);
 	yarm.mongooseResource(name, model, options);
+}
+
+function aggregateResource(name, model, pipeline, options) {
+	yarm.resource.remove(name);
+	yarm.mongooseResource.aggregate(name, model, pipeline, options);
 }
 
 
@@ -960,5 +965,79 @@ describe("Mongoose resources", function() {
 				});
 			});
 		});
+	});
+
+	describe("Aggregate resources", function() {
+		var aggregatePipeline = [
+				{ $project: {
+					field1: 1,
+					docArray: 1
+				} },
+				{ $unwind: "$docArray" },
+				{ $project: {
+					_id: "$docArray.field",
+					parent: "$field1"
+				} },
+				{ $sort: {
+					_id: -1
+				} }
+			];
+
+		function aggregateTest(query, expected, done) {
+			var uri = "/test";
+			aggregateResource("test", TestModel, aggregatePipeline);
+
+			if (query) {
+				uri += "?query=" + encodeURIComponent(query);
+			}
+
+			request.get(uri, function(res, body) {
+				assert.strictEqual(res.statusCode, 200);
+
+				var data = JSON.parse(body);
+				assert.strictEqual(typeof data, "object");
+				assert.strictEqual(data._count, expected.length);
+				assert(Array.isArray(data._items));
+				assert.strictEqual(data._items.length, expected.length);
+				assert.deepEqual(
+					data._items.map(function(item) {
+						return item._id;
+					}),
+					expected
+				);
+
+				done();
+			});
+		}
+
+		it(
+			"should GET aggregates as collections",
+			aggregateTest.bind(null, "", [ "foo", "baz", "bar" ])
+		);
+
+		it(
+			"should compare fields when query has field:value",
+			aggregateTest.bind(null, "_id:foo", ["foo"])
+		);
+
+		it(
+			"should regex-compare fields when query has field:/regexp/",
+			aggregateTest.bind(null, "_id:/a/", ["baz", "bar"])
+		);
+
+		it(
+			"should allow queries with AND operators",
+			aggregateTest.bind(null, "_id:/a/ AND parent:arr", ["baz", "bar"])
+		);
+
+		it(
+			"should allow queries with OR operators",
+			aggregateTest.bind(null, "_id:/a/ OR _id:/o/", ["foo", "baz", "bar"])
+		);
+
+		it(
+			"should allow queries with both AND and OR operators",
+			aggregateTest.bind(null, "parent:/r/ OR _id:/a/ AND _id:/b/", ["foo", "baz", "bar"])
+		);
 	});
 });
