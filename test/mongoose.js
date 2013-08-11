@@ -1039,5 +1039,50 @@ describe("Mongoose resources", function() {
 			"should allow queries with both AND and OR operators",
 			aggregateTest.bind(null, "parent:/r/ OR _id:/a/ AND _id:/b/", ["foo", "baz", "bar"])
 		);
+
+		it("should GET agregated documents with their projected _id", function(done) {
+			aggregateResource("test", TestModel, aggregatePipeline);
+
+			request.get("/test/bar", function(res, body) {
+				assert.strictEqual(res.statusCode, 200);
+				var doc = JSON.parse(body);
+				assert.strictEqual(typeof doc, "object");
+				assert.strictEqual(doc._id, "bar");
+				assert.strictEqual(doc.parent, "arr");
+
+				done();
+			});
+		});
+
+		it("should 404 on nonexistent aggregated documents", function(done) {
+			aggregateResource("test", TestModel, aggregatePipeline);
+
+			request.get("/test/nope", function(res, body) {
+				assert.strictEqual(res.statusCode, 404);
+				assert.strictEqual(body, "Not found");
+				
+				done();
+			});
+		});
+
+		it("should allow defining custom subresources", function(done) {
+			aggregateResource("test", TestModel, aggregatePipeline, {
+				subResources: {
+					"foo": function(item) {
+						return {
+							get: function(req, cb) {
+								cb(null, "I'm foo inside " + item._id);
+							}
+						};
+					}
+				}
+			});
+
+			request.get("/test/bar/foo", function(res, body) {
+				assert.strictEqual(res.statusCode, 200);
+				assert.strictEqual(body, "I'm foo inside bar");
+				done();
+			});
+		});
 	});
 });
