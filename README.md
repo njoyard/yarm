@@ -606,8 +606,7 @@ present in the request body from the document.  Again, you must use
 use those, as they expect a JSON request body.
 
 DELETE requests on document resources will attempt to delete documents by
-calling `Document#remove`.  This may not work on embedded documents unless you
-manually define a remove method.
+calling `Document#remove`.
 
 ##### DocumentArray resources
 
@@ -790,7 +789,7 @@ Note that even if path patterns take the full resource path in consideration
 (including the resource name), you will not be able to override paths to other
 yarm resources.
 
-```
+```javascript
 yarm.mongooseResource("other", OtherModel);
 yarm.mongooseResource("name", Model, {
 	overrides: {
@@ -806,7 +805,7 @@ yarm.mongooseResource("name", Model, {
 However, matching the resource name enables you to reuse the same overrides
 object definition with multiple resources.
 
-```
+```javascript
 var overrides = {
 	// Will only be applied on ModelA
 	"a/$/field": { ... },
