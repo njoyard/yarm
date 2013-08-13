@@ -720,6 +720,27 @@ describe("Mongoose resources", function() {
 					});
 				});
 			});
+
+			it("should POST new documents to DocumentArrays at specified index", function(done) {
+				var item = testData[3];
+				mongooseResource("test", TestModel);
+
+				request.post("/test/" + item._id + "/docArray?index=1", { field: "bang" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 201);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+
+						var subs = doc.docArray.filter(function(sub) {
+							return sub.field === "bang";
+						});
+
+						assert.strictEqual(subs.length, 1);
+						assert.strictEqual(doc.docArray.indexOf(subs[0]), 1);
+						done();
+					});
+				});
+			});
 		});
 
 		describe("DocumentArray documents", function() {
