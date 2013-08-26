@@ -159,6 +159,14 @@ yarm.resource("teapot", {
 });
 ```
 
+If you pass an options object with a truthy `errorStack` when initializing
+yarm, the whole error stack will be sent as a response.  You may want to avoid
+this on production environments.
+
+```javascript
+app.use("/rest", yarm({ errorStack: true }));
+```
+
 #### Collections
 
 To enable collection-type GET handling, define two `count` and `list` methods.
@@ -568,7 +576,11 @@ filter returned documents.  The value of this parameter must be a set of
 operators take precedence over `OR` operators.  `field:value` criteria match
 fields with the exact value passed, but you can also pass regular expressions.
 
-	?query=field1:value OR field2:/^foo/ AND subdoc.field:/^bar/
+	?query=field1:value OR field2:/^foo/i AND subdoc.field:/^bar/
+
+You can invert criteria by replacing the colon with an exclamation mark.
+
+	?query=field!notThisValue AND field!/notThisRegex/
 
 There is currently no strict syntax checks on queries.  Malformed queries may
 make yarm throw exceptions.
