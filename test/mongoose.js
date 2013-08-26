@@ -256,6 +256,21 @@ describe("Mongoose resources", function() {
 			);
 
 			it(
+				"should regex-compare with flags",
+				queryTest.bind(null, "field1:/A/i", ["bar", "arr"])
+			);
+
+			it(
+				"should negate comparisons with field!value",
+				queryTest.bind(null, "field1!foo", ["bar", "arr", "sub"])
+			);
+
+			it(
+				"should negate regex-comparisons with field!/regexp/",
+				queryTest.bind(null, "field1!/a/", ["foo", "sub"])
+			);
+
+			it(
 				"should allow queries on sub-fields",
 				queryTest.bind(null, "subDoc.field:foo", ["sub"])
 			);
@@ -682,6 +697,21 @@ describe("Mongoose resources", function() {
 			);
 
 			it(
+				"should regex-compare with flags",
+				queryTest.bind(null, "field:/A/i", ["bar", "baz"])
+			);
+
+			it(
+				"should negate comparisons when query has field!value",
+				queryTest.bind(null, "field!foo", ["bar", "baz"])
+			);
+
+			it(
+				"should negate regex-comparisons when query has field!/regexp/",
+				queryTest.bind(null, "field!/a/", ["foo"])
+			);
+
+			it(
 				"should allow queries on sub-fields",
 				queryTest.bind(null, "sub.field:sub", ["baz"])
 			);
@@ -1044,6 +1074,21 @@ describe("Mongoose resources", function() {
 		it(
 			"should regex-compare fields when query has field:/regexp/",
 			aggregateTest.bind(null, "_id:/a/", ["baz", "bar"])
+		);
+
+		it(
+			"should regex-compare with flags",
+			aggregateTest.bind(null, "_id:/A/i", ["baz", "bar"])
+		);
+
+		it(
+			"should negate comparisons when query has field!value",
+			aggregateTest.bind(null, "_id!foo", ["baz", "bar"])
+		);
+
+		it(
+			"should negate regex-comparisons when query has field!/regexp/",
+			aggregateTest.bind(null, "_id!/a/", ["foo"])
 		);
 
 		it(
