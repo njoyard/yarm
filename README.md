@@ -31,6 +31,7 @@ Yet Another REST Module for node.js and Express.
 			- [`toObject`](#toobject)
 			- [`overrides`](#overrides)
 			- [`key`](#key)
+			- [`request`](#request)
 		- [Aggregate resources](#aggregate-resources)
 - [Miscellaneous](#miscellaneous)
 	- [Removing resources](#removing-resources)
@@ -879,6 +880,21 @@ yarm.mongooseResource("model", Model, {
 	}
 })
 ```
+
+##### `request`
+
+By default, yarm adds a `_request` property with the current Express Request
+object on all documents it handles.  This property can be used in virtual
+getters or document methods for example.
+
+```javascript
+MySchema.virtual("clientHost").get(function() {
+	return this._request ? this._request.headers.host : null;
+});
+```
+
+The `request` option can be used to disable this property (when setting it to
+`false`) or change its name.
 
 #### Aggregate resources
 
