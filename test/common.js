@@ -63,8 +63,8 @@ request.patch = request.bind(null, "PATCH");
 
 /* Test resource definition helper */
 function resource(name, definition) {
-	yarm.resource.remove(name);
-	yarm.resource(name, definition);
+	yarm.remove(name);
+	return yarm.resource(name, definition);
 }
 
 
@@ -99,7 +99,7 @@ var methods = {
 	"PUT": { name: "put", cbIndex: 2, noContent: { code: 204, msg: "" } },
 	"PATCH": { name: "put", cbIndex: 2, noContent: { code: 204, msg: "" } },
 	"DELETE": { name: "del", cbIndex: 1, noContent: { code: 204, msg: "" } },
-	"POST": { name: "post", cbIndex: 1, noContent: { code: 201, msg: "Created" } },
+	"POST": { name: "post", cbIndex: 1, noContent: { code: 204, msg: "" } },
 };
 
 /* Describe standard tests valid for all methods */
@@ -140,14 +140,12 @@ function callbackTests(method, it) {
 	}
 
 
-	it("should respond with 405 Not Allowed when ." + methodName + " is not present", function(done) {
-		var def = {};
+	it("should respond with 405 Not Allowed when ." + methodName + " was not called", function(done) {
+		var r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
-			def[key] = additionalMethods[key];
+			r[key](additionalMethods[key]);
 		});
-
-		resource("test", def);
 
 		doRequest("/test", function(res, body) {
 			assert.strictEqual(body, "Method not allowed");
@@ -157,24 +155,21 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should call ." + methodName, function(done) {
+	it("should call ." + methodName + " callback", function(done) {
 		var called = false,
-			def = {};
+			r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
-			def[key] = additionalMethods[key];
+			r[key](additionalMethods[key]);
 		});
 
-
-		def[methodName] = function() {
+		r[methodName](function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
 
 			called = true;
 			cb();
-		};
-
-		resource("test", def);
+		});
 
 		doRequest("/test", function(res, body) {
 			assert(called);
@@ -182,21 +177,19 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should respond 500 with the error message passed from ." + methodName, function(done) {
-		var def = {};
+	it("should respond 500 with the error message passed from ." + methodName + " callback", function(done) {
+		var r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
-			def[key] = additionalMethods[key];
+			r[key](additionalMethods[key]);
 		});
 
-		def[methodName] = function() {
+		r[methodName](function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
 
 			cb(new Error("Test error"));
-		};
-
-		resource("test", def);
+		});
 
 		doRequest("/test", function(res, body) {
 			assert.strictEqual(body, "Test error");
@@ -206,23 +199,21 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should respond with the error message and code passed from ." + methodName, function(done) {
-		var def = {};
+	it("should respond with the error message and code passed from ." + methodName + " callback", function(done) {
+		var r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
-			def[key] = additionalMethods[key];
+			r[key](additionalMethods[key]);
 		});
 
-		def[methodName] = function() {
+		r[methodName](function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
 
 			var err = new Error("Test error");
 			err.code = 542;
 			cb(err);
-		};
-
-		resource("test", def);
+		});
 
 		doRequest("/test", function(res, body) {
 			assert.strictEqual(body, "Test error");
@@ -233,21 +224,19 @@ function callbackTests(method, it) {
 	});
 
 	if (doResultTests) {
-		it("should respond with " + noContent.code + " " + noContent.msg + " when ." + methodName + " sends nothing", function(done) {
-			var def = {};
+		it("should respond with " + noContent.code + " " + noContent.msg + " when ." + methodName + " callback sends nothing", function(done) {
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
 				cb();
-			};
-
-			resource("test", def);
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(res.statusCode, noContent.code);
@@ -257,21 +246,19 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the result from ." + methodName, function(done) {
-			var def = {};
+		it("should respond with the result from ." + methodName + " callback", function(done) {
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
 				cb(null, "Test content");
-			};
-
-			resource("test", def);
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(body, "Test content");
@@ -281,21 +268,19 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the Buffer result from ." + methodName, function(done) {
-			var def = {};
+		it("should respond with the Buffer result from ." + methodName + " callback", function(done) {
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
 				cb(null, new Buffer("Test content"));
-			};
-
-			resource("test", def);
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(body, "Test content");
@@ -305,7 +290,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the readable stream result from ." + methodName, function(done) {
+		it("should respond with the readable stream result from ." + methodName + " callback", function(done) {
 			function TestStream(opt) {
 				Readable.call(this, opt);
 				this._done = false;
@@ -322,20 +307,18 @@ function callbackTests(method, it) {
 				}
 			};
 
-			var def = {};
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
 				cb(null, new TestStream());
-			};
-
-			resource("test", def);
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(body, "Test content");
@@ -345,21 +328,19 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should send response with mimetype when ." + methodName + " sends a ResponseBody", function(done) {
-			var def = {};
+		it("should send response with mimetype from ." + methodName + " callback", function(done) {
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
-				cb(null, new yarm.ResponseBody("Test content", "text/x-test-content"));
-			};
-
-			resource("test", def);
+				cb(null, "Test content", "text/x-test-content");
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(res.headers["content-type"], "text/x-test-content");
@@ -369,19 +350,19 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should send file ." + methodName + " sends a ResponseFile", function(done) {
-			var def = {};
+		it("should send file when ." + methodName + " callback calls cb.file()", function(done) {
+			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
-				def[key] = additionalMethods[key];
+				r[key](additionalMethods[key]);
 			});
 
-			def[methodName] = function() {
+			r[methodName](function() {
 				var req = arguments[0],
 					cb = arguments[callbackIndex];
 
-				cb(null, new yarm.ResponseFile(__dirname + "/testfile", "text/x-test-content"));
-			};
+				cb.file(null, __dirname + "/testfile", "text/x-test-content");
+			});
 
 			doRequest("/test", function(res, body) {
 				assert.strictEqual(res.headers["content-type"], "text/x-test-content");
@@ -389,28 +370,24 @@ function callbackTests(method, it) {
 
 				done();
 			});
-
-			resource("test", def);
 		});
 	}
 
-	it("should pass the request object to ." + methodName, function(done) {
-		var def = {},
+	it("should pass the request object to ." + methodName + " callback", function(done) {
+		var r = resource("test"),
 			request;
 
 		Object.keys(additionalMethods).forEach(function(key) {
-			def[key] = additionalMethods[key];
+			r[key](additionalMethods[key]);
 		});
 
-		def[methodName] = function() {
+		r[methodName](function() {
 			var req = arguments[0],
 				cb = arguments[callbackIndex];
 
 			request = req;
 			cb();
-		};
-
-		resource("test", def);
+		});
 
 		doRequest("/test?foo=bar", function(res, body) {
 			assert.strictEqual(request.param("foo"), "bar");
