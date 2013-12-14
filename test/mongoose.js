@@ -57,20 +57,21 @@ var testData = [
 
 
 /* Resource definition helpers */
-function mongooseResource(name, model, options) {
-	yarm.resource.remove(name);
-	yarm.mongooseResource(name, model, options);
+function mongooseResource(name, model) {
+	yarm.remove(name);
+	return yarm.mongoose(name, model);
 }
 
 function aggregateResource(name, model, pipeline, options) {
-	yarm.resource.remove(name);
-	yarm.mongooseResource.aggregate(name, model, pipeline, options);
+	yarm.remove(name);
+	return yarm.mongoose.aggregate(name, model, pipeline, options);
 }
 
 
 /* Collection result checking helper */
 function assertCollection(res, body, field1values) {
-	var data = JSON.parse(body);
+	var data;
+	assert.doesNotThrow(function() { data = JSON.parse(body); });
 
 	// Basic response check
 	assert.strictEqual(res.statusCode, 200);
@@ -111,8 +112,10 @@ function assertCollection(res, body, field1values) {
 
 /* DocumentArray collection result checking helper */
 function assertDocArrayCollection(res, body, fieldvalues) {
-	var docArray = testData[3].docArray,
-		data = JSON.parse(body);
+	var docArray = testData[3].docArray;
+
+	var data;
+	assert.doesNotThrow(function() { data = JSON.parse(body); });
 
 	// Basic response check
 	assert.strictEqual(res.statusCode, 200);
@@ -305,37 +308,28 @@ describe("Mongoose resources", function() {
 				};
 
 				request.post("/test", doc, function(res, body) {
-					var rdoc = JSON.parse(body);
-					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(res.statusCode, 201); // Created
 
 					// Check addition to mongoose collection first
 					TestModel.findOne({ field1: "add" }, function(err, item) {
 						assert.ifError(err);
 						assert(item);
-
-						// Add IDs to original doc
-						doc._id = item._id.toString();
-						item.docArray.forEach(function(subitem, index) {
-							doc.docArray[index]._id = subitem._id.toString();
-						});
-
-						delete rdoc.__v;
-
-						// Check returned document
-						assert.deepEqual(rdoc, doc);
+						
 						done();
 					});
 				});
 			});
 
 			it("should allow sorting collections", function(done) {
-				mongooseResource("test", TestModel, {
-					sort: { field1: "asc" }
-				});
+				mongooseResource("test", TestModel)
+					.set("sort", { field1: "asc" });
 
 
 				request.get("/test", function(res, body) {
-					var docs = JSON.parse(body)._items;
+					var data;
+					assert.doesNotThrow(function() { data = JSON.parse(body); });
+
+					var docs = data._items;
 
 					assert.strictEqual(docs[0].field1, "arr");
 					assert.strictEqual(docs[1].field1, "bar");
@@ -354,7 +348,8 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.get("/test/" + item._id, function(res, body) {
-							var doc = JSON.parse(body);
+							var doc;
+							assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -380,12 +375,12 @@ describe("Mongoose resources", function() {
 				"should allow setting mongoose toObject options",
 				composeTests(testData.map(function(item) {
 					return function(done) {
-						mongooseResource("test", TestModel, {
-							toObject: { virtuals: true }
-						});
+						mongooseResource("test", TestModel)
+							.set("toObject", { virtuals: true });
 
 						request.get("/test/" + item._id, function(res, body) {
-							var doc = JSON.parse(body);
+							var doc;
+							assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -425,10 +420,12 @@ describe("Mongoose resources", function() {
 				"should allow specifying an alternate primary key",
 				composeTests(testData.map(function(item) {
 					return function(done) {
-						mongooseResource("test", TestModel, { key: "field1" });
+						mongooseResource("test", TestModel)
+							.set("key", "field1");
 
 						request.get("/test/" + item.field1, function(res, body) {
-							var doc = JSON.parse(body);
+							var doc;
+							assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -554,7 +551,8 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.get("/test/" + item._id + "/subDoc", function(res, body) {
-					var doc = JSON.parse(body);
+					var doc;
+					assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 					assert.strictEqual(res.statusCode, 200);
 					assert.strictEqual(typeof doc, "object");
@@ -587,7 +585,7 @@ describe("Mongoose resources", function() {
 				var item = testData[2];
 				mongooseResource("test", TestModel);
 
-				request.put("/test/" + item._id + "/subDoc", { field: "bar" }, function(res, body) {
+				request.put("/test/" + item._id + "/subDoc", { _value: { field: "bar" } }, function(res, body) {
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -652,7 +650,8 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.get("/test/" + item._id + "/docArray", function(res, body) {
-					var data = JSON.parse(body);
+					var data;
+					assert.doesNotThrow(function() { data = JSON.parse(body); });
 
 					assert.strictEqual(res.statusCode, 200);
 					assert.strictEqual(typeof data, "object");
@@ -780,7 +779,8 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.get("/test/" + testData[3]._id + "/docArray/" + item._id, function(res, body) {
-							var doc = JSON.parse(body);
+							var doc;
+							assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -797,18 +797,16 @@ describe("Mongoose resources", function() {
 				}))
 			);
 
-			it(
+			it.skip(
 				"should allow specifying an alternate primary key on collection paths",
 				composeTests(testData[3].docArray.map(function(item) {
 					return function(done) {
-						mongooseResource("test", TestModel, {
-							key: {
-								"test/$/docArray": "field"
-							}
-						});
+						mongooseResource("test", TestModel)
+							.set("key", { "test/$/docArray": "field" });
 
 						request.get("/test/" + testData[3]._id + "/docArray/" + item.field, function(res, body) {
-							var doc = JSON.parse(body);
+							var doc;
+							assert.doesNotThrow(function() { doc = JSON.parse(body); });
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -910,112 +908,6 @@ describe("Mongoose resources", function() {
 				});
 			});
 		});
-
-		describe("Method overrides", function() {
-			it("should allow method overrides on model collections", function(done) {
-				var called = false;
-
-				mongooseResource("test", TestModel, {
-					overrides: {
-						"test": {
-							get: function(model, req, cb) {
-								called = true;
-								cb();
-							}
-						}
-					}
-				});
-
-				request.get("/test", function(res, body) {
-					assert(called);
-					done();
-				});
-			});
-
-			it("should pass the Model to method overrides on model collections", function(done) {
-				var arg;
-
-				mongooseResource("test", TestModel, {
-					overrides: {
-						"test": {
-							get: function(model, req, cb) {
-								arg = model;
-								cb();
-							}
-						}
-					}
-				});
-
-				request.get("/test", function(res, body) {
-					assert.strictEqual(arg, TestModel);
-					done();
-				});
-			});
-
-
-			it("should allow matching any single path element with $ in an override path", function(done) {
-				var called = false;
-
-				mongooseResource("test", TestModel, {
-					overrides: {
-						"test/$/field1": {
-							get: function(chain, req, cb) {
-								called = true;
-								cb();
-							}
-						}
-					}
-				});
-
-				request.get("/test/" + testData[0]._id + "/field1", function(res, body) {
-					assert(called);
-					done();
-				});
-			});
-
-			it("should allow matching multiple path elements with * in an override path", function(done) {
-				var called = false;
-
-				mongooseResource("test", TestModel, {
-					overrides: {
-						"test/*/field": {
-							get: function(chain, req, cb) {
-								called = true;
-								cb();
-							}
-						}
-					}
-				});
-
-				request.get("/test/" + testData[2]._id + "/subDoc/field", function(res, body) {
-					assert(called);
-					done();
-				});
-			});
-
-			it("should pass the full object chain to override methods", function(done) {
-				var arg;
-
-				mongooseResource("test", TestModel, {
-					overrides: {
-						"test/*/field": {
-							get: function(chain, req, cb) {
-								arg = chain;
-								cb();
-							}
-						}
-					}
-				});
-
-				request.get("/test/" + testData[2]._id + "/subDoc/field", function(res, body) {
-					assert.strictEqual(arg.length, 3);
-					assert.strictEqual(arg[0], TestModel);
-					assert.strictEqual(arg[1]._id.toString(), testData[2]._id);
-					assert.strictEqual(arg[2], testData[2].subDoc.field);
-					done();
-				});
-			});
-		});
 	});
 
 	describe("Aggregate resources", function() {
@@ -1045,7 +937,8 @@ describe("Mongoose resources", function() {
 			request.get(uri, function(res, body) {
 				assert.strictEqual(res.statusCode, 200);
 
-				var data = JSON.parse(body);
+				var data;
+				assert.doesNotThrow(function() { data = JSON.parse(body); });
 				assert.strictEqual(typeof data, "object");
 				assert.strictEqual(data._count, expected.length);
 				assert(Array.isArray(data._items));
@@ -1111,7 +1004,8 @@ describe("Mongoose resources", function() {
 
 			request.get("/test/bar", function(res, body) {
 				assert.strictEqual(res.statusCode, 200);
-				var doc = JSON.parse(body);
+				var doc;
+				assert.doesNotThrow(function() { doc = JSON.parse(body); });
 				assert.strictEqual(typeof doc, "object");
 				assert.strictEqual(doc._id, "bar");
 				assert.strictEqual(doc.parent, "arr");

@@ -24,9 +24,17 @@ describe("Sub-resources", function() {
 			cb(null, "bar");
 		});
 
+		r.sub("bar").get(function(req, cb) {
+			cb(null, "baz");
+		});
+
 		request.get("/test/foo", function(res, body) {
 			assert.strictEqual("bar", body);
-			done();
+
+			request.get("/test/bar", function(res, body) {
+				assert.strictEqual("baz", body);
+				done();
+			});
 		});
 	});
 
@@ -39,7 +47,7 @@ describe("Sub-resources", function() {
 			assert.strictEqual("baz", body);
 			done();
 		});
-	})
+	});
 
 	it("Should allow sub-resource wildcards with .sub(':var')", function(done) {
 		resource("test").sub(":var").get(function(req, cb) {
@@ -60,23 +68,52 @@ describe("Sub-resources", function() {
 		assert.strictEqual(r.sub("foo").sub(":x/bar"), r.sub("foo/:y/bar"));
 	});
 
-	it("Should store values matched by sub-resource wildcards in req.params", function(done) {
-		var params;
+	it("Should allow greedy sub-resource wildcards with .sub('*')", function(done) {
+		resource("test").sub("*").get(function(req, cb) {
+			cb(null, "bar");
+		});
 
-		resource("test").sub("foo/:bar/baz/:bing").get(function(req, cb) {
-			params = req.params;
-			cb();
+		request.get("/test/foo", function(res, body) {
+			assert.strictEqual("bar", body);
+
+			request.get("/test/bar/baz", function(res, body) {
+				assert.strictEqual("bar", body);
+				done();
+			});
+		});
+	});
+
+	it("Should store values matched by sub-resource wildcards in req.params", function(done) {
+		var r = resource("test");
+
+		r.sub("foo/:bar/baz/:bing").get(function(req, cb) {
+			cb(null, req.params.bar + "/" + req.params.bing);
+		});
+
+		r.sub("foo2/*").get(function(req, cb) {
+			cb(null, req.params["*"]);
 		});
 
 		request.get("/test/foo/barValue/baz/bingValue", function(res, body) {
-			assert.strictEqual("barValue", params.bar);
-			assert.strictEqual("bingValue", params.bing);
-			done();
+			assert.strictEqual("barValue/bingValue", body);
+
+			request.get("/test/foo2/bar/baz", function(res, body) {
+				assert.strictEqual("bar/baz", body);
+				done();
+			});
 		});
 	});
 
 	it("Should override previously defined handlers for sub-resources", function(done) {
 		var r = resource("test");
+
+		r.sub("*").get(function(req, cb) {
+			cb(null, "*");
+		});
+
+		r.sub("foo/*").get(function(req, cb) {
+			cb(null, "foo/*");
+		});
 
 		r.sub("foo/bar").get(function(req, cb) {
 			cb(null, "first");

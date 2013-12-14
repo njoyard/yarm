@@ -79,7 +79,8 @@ describe("Collection resources", function() {
 				});
 
 			request.get("/test", function(res, body) {
-				var jbody = JSON.parse(body);
+				var jbody;
+				assert.doesNotThrow(function() { jbody = JSON.parse(body); });
 
 				assert.deepEqual({
 					_count: 42,
@@ -94,7 +95,7 @@ describe("Collection resources", function() {
 
 describe("Hybrid resources", function() {
 	describe("GET", function() {
-		it("should only call .get callback when both .get, .list and .count have been called", function(done) {
+		it("should prefer .get callback over .list and .count callbacks", function(done) {
 			var called = [];
 
 			resource("test")
