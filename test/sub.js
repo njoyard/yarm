@@ -223,8 +223,8 @@ describe("Sub-resources", function() {
 		request.get("/test/foo/bar", function(res, body) {
 			var data = assertJSON(body);
 
-			assert.strictEqual(data.raw, "http://localhost/test/foo/bar");
-			assert.strictEqual(data.sub, "http://localhost/test/foo/bar/baz/bing");
+			assert.strictEqual(data.raw, "http://localhost:8081/rest/test/foo/bar");
+			assert.strictEqual(data.sub, "http://localhost:8081/rest/test/foo/bar/baz/bing");
 
 			done();
 		});
