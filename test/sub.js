@@ -173,6 +173,31 @@ describe("Sub-resources", function() {
 		});
 	});
 
+	it("Should stop handling when a hook throws", function(done) {
+		var r = resource("test"),
+			called = [];
+
+		r.sub("foo", function(req, next) { next(); });
+		r.sub("foo").sub("bar", function() { throw new Error("Oops"); });
+
+		r.sub("foo/bar", function(req, next) {
+			called.push("third");
+			next();
+		}).get(function(req, cb) {
+			called.push("get");
+			cb();
+		});
+
+		request.get("/test/foo/bar", function(res, body) {
+			assert.strictEqual(-1, called.indexOf("third"));
+			assert.strictEqual(-1, called.indexOf("get"));
+
+			assert.strictEqual("Oops", body);
+			assert.strictEqual(500, res.statusCode);
+			done();
+		});
+	});
+
 	it("Should allow setting options on resources and sub-resources", function(done) {
 		var r, options1, options2;
 
