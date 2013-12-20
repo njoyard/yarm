@@ -11,6 +11,18 @@ var assert = require("assert"),
 	request = common.request;
 
 
+function assertJSON(json) {
+	var data;
+	try {
+		data = JSON.parse(json);
+	} catch(e) {
+		assert.strictEqual(json, "[valid json]");
+	}
+
+	return data;
+}
+
+
 describe("Sub-resources", function() {
 	it("Should allow defining sub-resources with .sub()", function(done) {
 		var r = resource("test");
@@ -194,6 +206,26 @@ describe("Sub-resources", function() {
 
 			assert.strictEqual("Oops", body);
 			assert.strictEqual(500, res.statusCode);
+			done();
+		});
+	});
+
+	it("Should allow getting URLs for subresources with req.getHref([subpath])", function(done) {
+		var r = resource("test");
+
+		r.sub("foo/bar").get(function(req, cb) {
+			cb(null, {
+				raw: req.getHref(),
+				sub: req.getHref("baz/bing")
+			});
+		});
+
+		request.get("/test/foo/bar", function(res, body) {
+			var data = assertJSON(body);
+
+			assert.strictEqual(data.raw, "http://localhost/test/foo/bar");
+			assert.strictEqual(data.sub, "http://localhost/test/foo/bar/baz/bing");
+
 			done();
 		});
 	});
