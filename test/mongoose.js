@@ -15,6 +15,30 @@ var mongoose = require("mongoose"),
 
 
 
+function assertJSON(json) {
+	var data;
+	try {
+		data = JSON.parse(json);
+	} catch(e) {
+		assert.strictEqual(json, "[valid json]");
+	}
+
+	return data;
+}
+
+
+function assertEmpty(body) {
+	if (body && body.length > 0) {
+		assert.strictEqual(body, "[empty body]");
+	}
+}
+
+function assertCreated(res, body) {
+	assert.strictEqual(res.statusCode, 201);
+	assert.strictEqual(body, "Created");
+}
+
+
 /*!
  * Test data
  */
@@ -70,8 +94,7 @@ function aggregateResource(name, model, pipeline, options) {
 
 /* Collection result checking helper */
 function assertCollection(res, body, field1values) {
-	var data;
-	assert.doesNotThrow(function() { data = JSON.parse(body); });
+	var data = assertJSON(body);
 
 	// Basic response check
 	assert.strictEqual(res.statusCode, 200);
@@ -114,8 +137,7 @@ function assertCollection(res, body, field1values) {
 function assertDocArrayCollection(res, body, fieldvalues) {
 	var docArray = testData[3].docArray;
 
-	var data;
-	assert.doesNotThrow(function() { data = JSON.parse(body); });
+	var data = assertJSON(body);
 
 	// Basic response check
 	assert.strictEqual(res.statusCode, 200);
@@ -308,6 +330,7 @@ describe("Mongoose resources", function() {
 				};
 
 				request.post("/test", doc, function(res, body) {
+					assertCreated(res, body);
 					assert.strictEqual(res.statusCode, 201); // Created
 
 					// Check addition to mongoose collection first
@@ -326,9 +349,7 @@ describe("Mongoose resources", function() {
 
 
 				request.get("/test", function(res, body) {
-					var data;
-					assert.doesNotThrow(function() { data = JSON.parse(body); });
-
+					var data = assertJSON(body);
 					var docs = data._items;
 
 					assert.strictEqual(docs[0].field1, "arr");
@@ -348,8 +369,7 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.get("/test/" + item._id, function(res, body) {
-							var doc;
-							assert.doesNotThrow(function() { doc = JSON.parse(body); });
+							var doc = assertJSON(body);
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -379,8 +399,7 @@ describe("Mongoose resources", function() {
 							.set("toObject", { virtuals: true });
 
 						request.get("/test/" + item._id, function(res, body) {
-							var doc;
-							assert.doesNotThrow(function() { doc = JSON.parse(body); });
+							var doc = assertJSON(body);
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -424,8 +443,7 @@ describe("Mongoose resources", function() {
 							.set("key", "field1");
 
 						request.get("/test/" + item.field1, function(res, body) {
-							var doc;
-							assert.doesNotThrow(function() { doc = JSON.parse(body); });
+							var doc = assertJSON(body);
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -452,6 +470,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.del("/test/" + item._id, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.find({ _id: item._id }, function(err, items) {
@@ -467,6 +486,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.put("/test/" + item._id, { field2: "bar" }, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -514,6 +534,7 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.del("/test/" + item._id + "/field1", function(res, body) {
+							assertEmpty(body);
 							assert.strictEqual(res.statusCode, 204);
 
 							TestModel.findById(item._id, function(err, doc) {
@@ -532,6 +553,7 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.put("/test/" + item._id + "/field1", { _value: "newValue" }, function(res, body) {
+							assertEmpty(body);
 							assert.strictEqual(res.statusCode, 204);
 
 							TestModel.findById(item._id, function(err, doc) {
@@ -551,8 +573,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.get("/test/" + item._id + "/subDoc", function(res, body) {
-					var doc;
-					assert.doesNotThrow(function() { doc = JSON.parse(body); });
+					var doc = assertJSON(body);
 
 					assert.strictEqual(res.statusCode, 200);
 					assert.strictEqual(typeof doc, "object");
@@ -569,6 +590,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.del("/test/" + item._id + "/subDoc", function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -586,6 +608,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.put("/test/" + item._id + "/subDoc", { _value: { field: "bar" } }, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -616,6 +639,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.del("/test/" + item._id + "/subDoc/field", function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -633,6 +657,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.put("/test/" + item._id + "/subDoc/field", { _value: "newValue" }, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -650,8 +675,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.get("/test/" + item._id + "/docArray", function(res, body) {
-					var data;
-					assert.doesNotThrow(function() { data = JSON.parse(body); });
+					var data = assertJSON(body);
 
 					assert.strictEqual(res.statusCode, 200);
 					assert.strictEqual(typeof data, "object");
@@ -735,6 +759,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.post("/test/" + item._id + "/docArray", { field: "bang" }, function(res, body) {
+					assertCreated(res, body);
 					assert.strictEqual(res.statusCode, 201);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -755,6 +780,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.post("/test/" + item._id + "/docArray?index=1", { field: "bang" }, function(res, body) {
+					assertCreated(res, body);
 					assert.strictEqual(res.statusCode, 201);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -779,8 +805,7 @@ describe("Mongoose resources", function() {
 						mongooseResource("test", TestModel);
 
 						request.get("/test/" + testData[3]._id + "/docArray/" + item._id, function(res, body) {
-							var doc;
-							assert.doesNotThrow(function() { doc = JSON.parse(body); });
+							var doc = assertJSON(body);
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -797,16 +822,15 @@ describe("Mongoose resources", function() {
 				}))
 			);
 
-			it.skip(
+			it(
 				"should allow specifying an alternate primary key on collection paths",
 				composeTests(testData[3].docArray.map(function(item) {
 					return function(done) {
 						mongooseResource("test", TestModel)
-							.set("key", { "test/$/docArray": "field" });
+							.sub(":id/docArray").set("key", "field");
 
 						request.get("/test/" + testData[3]._id + "/docArray/" + item.field, function(res, body) {
-							var doc;
-							assert.doesNotThrow(function() { doc = JSON.parse(body); });
+							var doc = assertJSON(body);
 
 							assert.strictEqual(res.statusCode, 200);
 							assert.strictEqual(typeof doc, "object");
@@ -830,6 +854,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.del("/test/" + item._id + "/docArray/" + sub._id, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -848,6 +873,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.put("/test/" + item._id + "/docArray/" + sub._id, { field: "bang" }, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -881,6 +907,7 @@ describe("Mongoose resources", function() {
 					sub = item.docArray[0];
 
 				request.del("/test/" + item._id + "/docArray/" + sub._id + "/field", function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -897,6 +924,7 @@ describe("Mongoose resources", function() {
 					sub = item.docArray[0];
 
 				request.put("/test/" + item._id + "/docArray/" + sub._id + "/field", { _value: "bang" }, function(res, body) {
+					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
 					TestModel.findById(item._id, function(err, doc) {
@@ -937,8 +965,7 @@ describe("Mongoose resources", function() {
 			request.get(uri, function(res, body) {
 				assert.strictEqual(res.statusCode, 200);
 
-				var data;
-				assert.doesNotThrow(function() { data = JSON.parse(body); });
+				var data = assertJSON(body);
 				assert.strictEqual(typeof data, "object");
 				assert.strictEqual(data._count, expected.length);
 				assert(Array.isArray(data._items));
@@ -1004,8 +1031,7 @@ describe("Mongoose resources", function() {
 
 			request.get("/test/bar", function(res, body) {
 				assert.strictEqual(res.statusCode, 200);
-				var doc;
-				assert.doesNotThrow(function() { doc = JSON.parse(body); });
+				var doc = assertJSON(body);
 				assert.strictEqual(typeof doc, "object");
 				assert.strictEqual(doc._id, "bar");
 				assert.strictEqual(doc.parent, "arr");
@@ -1026,17 +1052,11 @@ describe("Mongoose resources", function() {
 		});
 
 		it("should allow defining custom subresources", function(done) {
-			aggregateResource("test", TestModel, aggregatePipeline, {
-				subResources: {
-					"foo": function(item) {
-						return {
-							get: function(req, cb) {
-								cb(null, "I'm foo inside " + item._id);
-							}
-						};
-					}
-				}
-			});
+			aggregateResource("test", TestModel, aggregatePipeline)
+				.sub(":id/foo")
+				.get(function(req, cb) {
+					cb(null, "I'm foo inside " + req.mongoose.item._id);
+				});
 
 			request.get("/test/bar/foo", function(res, body) {
 				assert.strictEqual(res.statusCode, 200);

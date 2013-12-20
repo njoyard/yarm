@@ -8,9 +8,8 @@ var assert = require("assert"),
 	common = require("./common"),
 
 	resource = common.resource,
-	request = common.request,
-	callbackTests = common.callbackTests,
-	allMethods = common.allMethods;
+	request = common.request;
+
 
 describe("Sub-resources", function() {
 	it("Should allow defining sub-resources with .sub()", function(done) {
@@ -20,13 +19,8 @@ describe("Sub-resources", function() {
 			assert.strictEqual("function", typeof r.sub("foo")[method]);
 		});
 
-		r.sub("foo").get(function(req, cb) {
-			cb(null, "bar");
-		});
-
-		r.sub("bar").get(function(req, cb) {
-			cb(null, "baz");
-		});
+		r.sub("foo").get(function(req, cb) { cb(null, "bar"); });
+		r.sub("bar").get(function(req, cb) { cb(null, "baz"); });
 
 		request.get("/test/foo", function(res, body) {
 			assert.strictEqual("bar", body);
@@ -60,12 +54,17 @@ describe("Sub-resources", function() {
 		});
 	});
 
-	it("Should allow direct deeper definitions with a single .sub() call", function() {
+	it("Should allow direct deeper definitions with a single .sub() call", function(done) {
 		var r = resource("test");
 
-		assert.strictEqual(r.sub("foo").sub(":x").sub("bar"), r.sub("foo/:y/bar"));
-		assert.strictEqual(r.sub("foo/:x").sub("bar"), r.sub("foo/:y/bar"));
-		assert.strictEqual(r.sub("foo").sub(":x/bar"), r.sub("foo/:y/bar"));
+		r.sub("foo/:x/bar").get(function(req, cb) {
+			cb(null, "bar");
+		});
+
+		request.get("/test/foo/whatever/bar", function(res, body) {
+			assert.strictEqual("bar", body);
+			done();
+		});
 	});
 
 	it("Should allow greedy sub-resource wildcards with .sub('*')", function(done) {
@@ -107,29 +106,12 @@ describe("Sub-resources", function() {
 	it("Should override previously defined handlers for sub-resources", function(done) {
 		var r = resource("test");
 
-		r.sub("*").get(function(req, cb) {
-			cb(null, "*");
-		});
-
-		r.sub("foo/*").get(function(req, cb) {
-			cb(null, "foo/*");
-		});
-
-		r.sub("foo/bar").get(function(req, cb) {
-			cb(null, "first");
-		});
-
-		r.sub("foo/:x").get(function(req, cb) {
-			cb(null, "second");
-		});
-
-		r.sub("foo").sub("bar").get(function(req, cb) {
-			cb(null, "third");
-		});
-
-		r.sub("foo").sub(":x").get(function(req, cb) {
-			cb(null, "fourth");
-		});
+		r.sub("*").get(function(req, cb) { cb(null, "*"); });
+		r.sub("foo/*").get(function(req, cb) { cb(null, "foo/*"); });
+		r.sub("foo/bar").get(function(req, cb) { cb(null, "first"); });
+		r.sub("foo/:x").get(function(req, cb) { cb(null, "second"); });
+		r.sub("foo").sub("bar").get(function(req, cb) { cb(null, "third"); });
+		r.sub("foo").sub(":x").get(function(req, cb) { cb(null, "fourth"); });
 
 		request.get("/test/foo/bar", function(res, body) {
 			assert.strictEqual("fourth", body);
@@ -170,13 +152,8 @@ describe("Sub-resources", function() {
 		var r = resource("test"),
 			called = [];
 
-		r.sub("foo", function(req, next) {
-			next();
-		});
-
-		r.sub("foo").sub("bar", function(req, next) {
-			next(new Error("Oops"));
-		});
+		r.sub("foo", function(req, next) { next(); });
+		r.sub("foo").sub("bar", function(req, next) { next(new Error("Oops")); });
 
 		r.sub("foo/bar", function(req, next) {
 			called.push("third");
@@ -193,6 +170,39 @@ describe("Sub-resources", function() {
 			assert.strictEqual("Oops", body);
 			assert.strictEqual(500, res.statusCode);
 			done();
+		});
+	});
+
+	it("Should allow setting options on resources and sub-resources", function(done) {
+		var r, options1, options2;
+
+		r = resource("test")
+			.set("foo", "bar");
+
+		r.sub("foo")
+			.set("bar", "baz")
+			.get(function(req, cb) {
+				options1 = req.options;
+				cb();
+			});
+
+		r.sub("foo/bar")
+			.set("foo", "baz")
+			.get(function(req, cb) {
+				options2 = req.options;
+				cb();
+			});
+
+		request.get("/test/foo", function(res, body) {
+			assert.strictEqual("bar", options1.foo);
+			assert.strictEqual("baz", options1.bar);
+
+			request.get("/test/foo/bar", function(res, body) {
+				assert.strictEqual("baz", options2.foo);
+				assert.strictEqual("baz", options2.bar);
+
+				done();
+			});
 		});
 	});
 });
