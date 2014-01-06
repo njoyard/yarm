@@ -140,8 +140,19 @@ function callbackTests(method, it) {
 	}
 
 
-	it("should respond with 405 Not Allowed when ." + methodName + " was not called", function(done) {
+	it("should respond with 405 Not Allowed when no " + methodName + " handler was set", function(done) {
 		var r = resource("test");
+
+		// Define a handler for an other method
+		if (["get", "list", "count"].indexOf(methodName) === -1) {
+			r.get(function(req, cb) {
+				cb();
+			});
+		} else {
+			r.put(function(req, cb) {
+				cb();
+			});
+		}
 
 		Object.keys(additionalMethods).forEach(function(key) {
 			r[key](additionalMethods[key]);
@@ -155,7 +166,7 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should call ." + methodName + " callback", function(done) {
+	it("should call " + methodName + " handler", function(done) {
 		var called = false,
 			r = resource("test");
 
@@ -177,7 +188,7 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should respond 500 with the error message passed from ." + methodName + " callback", function(done) {
+	it("should respond 500 with the error message passed from " + methodName + " handler", function(done) {
 		var r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
@@ -199,7 +210,7 @@ function callbackTests(method, it) {
 		});
 	});
 
-	it("should respond with the error message and code passed from ." + methodName + " callback", function(done) {
+	it("should respond with the error message and code passed from " + methodName + " handler", function(done) {
 		var r = resource("test");
 
 		Object.keys(additionalMethods).forEach(function(key) {
@@ -224,7 +235,7 @@ function callbackTests(method, it) {
 	});
 
 	if (doResultTests) {
-		it("should respond with " + noContent.code + " " + noContent.msg + " when ." + methodName + " callback sends nothing", function(done) {
+		it("should respond with " + noContent.code + " " + noContent.msg + " when " + methodName + " handler sends nothing", function(done) {
 			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -246,7 +257,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the result from ." + methodName + " callback", function(done) {
+		it("should respond with the result from " + methodName + " handler", function(done) {
 			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -268,7 +279,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the Buffer result from ." + methodName + " callback", function(done) {
+		it("should respond with the Buffer result from " + methodName + " handler", function(done) {
 			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -290,7 +301,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should respond with the readable stream result from ." + methodName + " callback", function(done) {
+		it("should respond with the readable stream result from " + methodName + " handler", function(done) {
 			function TestStream(opt) {
 				Readable.call(this, opt);
 				this._done = false;
@@ -328,7 +339,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should send response with mimetype from ." + methodName + " callback", function(done) {
+		it("should send response with mimetype from " + methodName + " handler", function(done) {
 			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -350,7 +361,7 @@ function callbackTests(method, it) {
 			});
 		});
 
-		it("should send file when ." + methodName + " callback calls cb.file()", function(done) {
+		it("should send file when " + methodName + " handler calls cb.file()", function(done) {
 			var r = resource("test");
 
 			Object.keys(additionalMethods).forEach(function(key) {
@@ -373,7 +384,7 @@ function callbackTests(method, it) {
 		});
 	}
 
-	it("should pass the request object to ." + methodName + " callback", function(done) {
+	it("should pass the request object to " + methodName + " handler", function(done) {
 		var r = resource("test"),
 			request;
 
