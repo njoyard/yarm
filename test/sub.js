@@ -131,82 +131,84 @@ describe("Sub-resources", function() {
 		});
 	});
 
-	it("Sould allow defining hooks for each .sub() call", function(done) {
-		var r = resource("test");
+	describe("Hooks", function() {
+		it("Sould allow defining hooks for each .sub() call", function(done) {
+			var r = resource("test");
 
-		r.sub("foo", function(req, next) {
-			req.hooks = req.hooks || [];
-			req.hooks.push("first");
-			next();
+			r.sub("foo", function(req, next) {
+				req.hooks = req.hooks || [];
+				req.hooks.push("first");
+				next();
+			});
+
+			r.sub("foo").sub("bar", function(req, next) {
+				req.hooks = req.hooks || [];
+				req.hooks.push("second");
+				next();
+			});
+
+			r.sub("foo/bar", function(req, next) {
+				req.hooks = req.hooks || [];
+				req.hooks.push("third");
+				next();
+			}).get(function(req, cb) {
+				cb(null, req.hooks.join("-"));
+			});
+
+			request.get("/test/foo/bar", function(res, body) {
+				assert.strictEqual("first-second-third", body);
+				done();
+			});
 		});
 
-		r.sub("foo").sub("bar", function(req, next) {
-			req.hooks = req.hooks || [];
-			req.hooks.push("second");
-			next();
+		it("Should stop handling when a hook returns an error", function(done) {
+			var r = resource("test"),
+				called = [];
+
+			r.sub("foo", function(req, next) { next(); });
+			r.sub("foo").sub("bar", function(req, next) { next(new Error("Oops")); });
+
+			r.sub("foo/bar", function(req, next) {
+				called.push("third");
+				next();
+			}).get(function(req, cb) {
+				called.push("get");
+				cb();
+			});
+
+			request.get("/test/foo/bar", function(res, body) {
+				assert.strictEqual(-1, called.indexOf("third"));
+				assert.strictEqual(-1, called.indexOf("get"));
+
+				assert.strictEqual("Oops", body);
+				assert.strictEqual(500, res.statusCode);
+				done();
+			});
 		});
 
-		r.sub("foo/bar", function(req, next) {
-			req.hooks = req.hooks || [];
-			req.hooks.push("third");
-			next();
-		}).get(function(req, cb) {
-			cb(null, req.hooks.join("-"));
-		});
+		it("Should stop handling when a hook throws", function(done) {
+			var r = resource("test"),
+				called = [];
 
-		request.get("/test/foo/bar", function(res, body) {
-			assert.strictEqual("first-second-third", body);
-			done();
-		});
-	});
+			r.sub("foo", function(req, next) { next(); });
+			r.sub("foo").sub("bar", function() { throw new Error("Oops"); });
 
-	it("Should stop handling when a hook returns an error", function(done) {
-		var r = resource("test"),
-			called = [];
+			r.sub("foo/bar", function(req, next) {
+				called.push("third");
+				next();
+			}).get(function(req, cb) {
+				called.push("get");
+				cb();
+			});
 
-		r.sub("foo", function(req, next) { next(); });
-		r.sub("foo").sub("bar", function(req, next) { next(new Error("Oops")); });
+			request.get("/test/foo/bar", function(res, body) {
+				assert.strictEqual(-1, called.indexOf("third"));
+				assert.strictEqual(-1, called.indexOf("get"));
 
-		r.sub("foo/bar", function(req, next) {
-			called.push("third");
-			next();
-		}).get(function(req, cb) {
-			called.push("get");
-			cb();
-		});
-
-		request.get("/test/foo/bar", function(res, body) {
-			assert.strictEqual(-1, called.indexOf("third"));
-			assert.strictEqual(-1, called.indexOf("get"));
-
-			assert.strictEqual("Oops", body);
-			assert.strictEqual(500, res.statusCode);
-			done();
-		});
-	});
-
-	it("Should stop handling when a hook throws", function(done) {
-		var r = resource("test"),
-			called = [];
-
-		r.sub("foo", function(req, next) { next(); });
-		r.sub("foo").sub("bar", function() { throw new Error("Oops"); });
-
-		r.sub("foo/bar", function(req, next) {
-			called.push("third");
-			next();
-		}).get(function(req, cb) {
-			called.push("get");
-			cb();
-		});
-
-		request.get("/test/foo/bar", function(res, body) {
-			assert.strictEqual(-1, called.indexOf("third"));
-			assert.strictEqual(-1, called.indexOf("get"));
-
-			assert.strictEqual("Oops", body);
-			assert.strictEqual(500, res.statusCode);
-			done();
+				assert.strictEqual("Oops", body);
+				assert.strictEqual(500, res.statusCode);
+				done();
+			});
 		});
 	});
 
@@ -230,33 +232,140 @@ describe("Sub-resources", function() {
 		});
 	});
 
-	it("Should allow setting options on resources and sub-resources", function(done) {
-		var r, options1, options2;
+	describe("Options", function() {
+		it("Should allow setting options on resources", function(done) {
+			var options1, options2;
 
-		r = resource("test")
-			.set("foo", "bar");
+			resource("test")
+				.set("foo", "bar")
+				.hook(function(req, next) {
+					options1 = req.options;
+					next();
+				})
+				.get(function(req, cb) {
+					options2 = req.options;
+					cb();
+				});
 
-		r.sub("foo")
-			.set("bar", "baz")
-			.get(function(req, cb) {
-				options1 = req.options;
-				cb();
+			request.get("/test", function(res, body) {
+				assert.strictEqual("bar", options1.foo);
+				assert.strictEqual("bar", options2.foo);
+
+				done();
 			});
+		});
 
-		r.sub("foo/bar")
-			.set("foo", "baz")
-			.get(function(req, cb) {
-				options2 = req.options;
-				cb();
+		it("Should allow setting multiple options at once on resources", function(done) {
+			var options1, options2;
+
+			resource("test")
+				.set({ "foo": "bar", "fuu": "baz" })
+				.hook(function(req, next) {
+					options1 = req.options;
+					next();
+				})
+				.get(function(req, cb) {
+					options2 = req.options;
+					cb();
+				});
+
+			request.get("/test", function(res, body) {
+				assert.strictEqual("bar", options1.foo);
+				assert.strictEqual("bar", options2.foo);
+				assert.strictEqual("baz", options1.fuu);
+				assert.strictEqual("baz", options2.fuu);
+
+				done();
 			});
+		});
 
-		request.get("/test/foo", function(res, body) {
-			assert.strictEqual("bar", options1.foo);
-			assert.strictEqual("baz", options1.bar);
+		it("Should allow setting options on sub-resources", function(done) {
+			var options1, options2;
 
-			request.get("/test/foo/bar", function(res, body) {
-				assert.strictEqual("baz", options2.foo);
-				assert.strictEqual("baz", options2.bar);
+			resource("test")
+				.sub("foo")
+					.set("foo", "bar")
+					.hook(function(req, next) {
+						options1 = req.options;
+						next();
+					})
+					.get(function(req, cb) {
+						options2 = req.options;
+						cb();
+					});
+
+			request.get("/test/foo", function(res, body) {
+				assert.strictEqual("bar", options1.foo);
+				assert.strictEqual("bar", options2.foo);
+
+				done();
+			});
+		});
+
+		it("Should pass parent options to sub-resource hooks and handlers", function(done) {
+			var options1, options2;
+
+			resource("test")
+				.set("foo", "bar")
+				.sub("foo")
+					.hook(function(req, next) {
+						options1 = req.options;
+						next();
+					})
+					.get(function(req, cb) {
+						options2 = req.options;
+						cb();
+					});
+
+			request.get("/test/foo", function(res, body) {
+				assert.strictEqual("bar", options1.foo);
+				assert.strictEqual("bar", options2.foo);
+
+				done();
+			});
+		});
+
+		it("Should not pass strict parent options to sub-resource hooks and handlers", function(done) {
+			var options1, options2;
+
+			resource("test")
+				.set("foo", "bar", true)
+				.sub("foo")
+					.hook(function(req, next) {
+						options1 = req.options;
+						next();
+					})
+					.get(function(req, cb) {
+						options2 = req.options;
+						cb();
+					});
+
+			request.get("/test/foo", function(res, body) {
+				assert.strictEqual("undefined", typeof options1.foo);
+				assert.strictEqual("undefined", typeof options2.foo);
+
+				done();
+			});
+		});
+
+		it("Should not leak sub-resource options to parent hooks and handlers", function(done) {
+			var options1, options2;
+
+			resource("test")
+				.hook(function(req, next) {
+					options1 = req.options;
+					next();
+				})
+				.get(function(req, cb) {
+					options2 = req.options;
+					cb();
+				})
+				.sub("foo")
+					.set("foo", "bar");
+
+			request.get("/test", function(res, body) {
+				assert.strictEqual("undefined", typeof options1.foo);
+				assert.strictEqual("undefined", typeof options2.foo);
 
 				done();
 			});
