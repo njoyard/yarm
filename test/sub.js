@@ -232,6 +232,76 @@ describe("Sub-resources", function() {
 		});
 	});
 
+	it("Should allow pattern matching with req.match(pattern)", function(done) {
+		resource("test").sub("foo/bar").get(function(req, cb) {
+			cb(null, [
+				req.match("test/foo"),
+				req.match("test/foo/bar"),
+				req.match(":first/:second"),
+				req.match(":first/foo/:third"),
+				req.match(":first/*")
+			]);
+		});
+
+		request.get("/test/foo/bar", function(res, body) {
+			var data = assertJSON(body);
+
+			/* Return false when not matching */
+			assert.strictEqual(data[0], false);
+			assert.strictEqual(data[2], false);
+
+			/* Return an empty object when matching pattern without parameters */
+			assert.strictEqual(typeof data[1], "object");
+			assert.strictEqual(Object.keys(data[1]).length, 0);
+
+			/* Return an object with matching parameters */
+			assert.strictEqual(typeof data[3], "object");
+			assert.strictEqual(data[3].first, "test");
+			assert.strictEqual(data[3].third, "bar");
+
+			assert.strictEqual(typeof data[4], "object");
+			assert.strictEqual(data[4].first, "test");
+			assert.strictEqual(data[4]["*"], "foo/bar");
+
+			done();
+		});
+	});
+
+	it("Should allow custom path pattern matching with req.path(pattern, path)", function(done) {
+		resource("test").get(function(req, cb) {
+			cb(null, [
+				req.match("test/foo", "/test/foo/bar"),
+				req.match("test/foo/bar", "/test/foo/bar"),
+				req.match(":first/:second", "/test/foo/bar"),
+				req.match(":first/foo/:third", "/test/foo/bar"),
+				req.match(":first/*", "/test/foo/bar")
+			]);
+		});
+
+		request.get("/test", function(res, body) {
+			var data = assertJSON(body);
+
+			/* Return false when not matching */
+			assert.strictEqual(data[0], false);
+			assert.strictEqual(data[2], false);
+
+			/* Return an empty object when matching pattern without parameters */
+			assert.strictEqual(typeof data[1], "object");
+			assert.strictEqual(Object.keys(data[1]).length, 0);
+
+			/* Return an object with matching parameters */
+			assert.strictEqual(typeof data[3], "object");
+			assert.strictEqual(data[3].first, "test");
+			assert.strictEqual(data[3].third, "bar");
+
+			assert.strictEqual(typeof data[4], "object");
+			assert.strictEqual(data[4].first, "test");
+			assert.strictEqual(data[4]["*"], "foo/bar");
+
+			done();
+		});
+	});
+
 	describe("Options", function() {
 		it("Should allow setting options on resources", function(done) {
 			var options1, options2;
