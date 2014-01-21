@@ -827,7 +827,8 @@ describe("Mongoose resources", function() {
 				composeTests(testData[3].docArray.map(function(item) {
 					return function(done) {
 						mongooseResource("test", TestModel)
-							.sub(":id/docArray").set("key", "field");
+							.sub(":id/docArray")
+							.set("subkeys", "field");
 
 						request.get("/test/" + testData[3]._id + "/docArray/" + item.field, function(res, body) {
 							var doc = assertJSON(body);
