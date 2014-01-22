@@ -1,984 +1,1309 @@
 yarm
 ====
 
-Yet Another REST Module for node.js and Express.
+*Yet Another REST Middleware for node.js and Express.*
 
-[![Build Status](https://travis-ci.org/njoyard/yarm.png)](http://travis-ci.org/njoyard/yarm)
+Master branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=master)](https://travis-ci.org/njoyard/yarm)
 
-**Table of Contents**
+Development branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=devel)](https://travis-ci.org/njoyard/yarm)
 
+## Table of contents
+
+- [Installation](#installation)
 - [Usage](#usage)
-- [Defining resources](#defining-resources)
-	- [Handling GET and HEAD requests](#handling-get-and-head-requests)
-		- [Documents](#documents)
-		- [Collections](#collections)
-	- [Handling DELETE requests](#handling-delete-requests)
-	- [Handling PUT and PATCH requests](#handling-put-and-patch-requests)
-	- [Handling POST requests](#handling-post-requests)
+	- [Basics](#basics)
+	- [Serving native javascript resources](#serving-native-javascript-resources)
+	- [Serving mongoose models and aggregates](#serving-mongoose-models-and-aggregates)
+	- [Serving custom resources](#serving-custom-resources)
+	- [Extending served resources](#extending-served-resources)
+- [Native resources](#native-resources)
+	- [Definition](#definition)
+	- [Modification](#modification)
+		- [DELETE](#delete)
+		- [PUT](#put)
+		- [PATCH](#patch)
+		- [POST](#post)
+	- [Options](#options)
+- [Mongoose resources](#mongoose-resources)
+	- [Definition](#definition-1)
+	- [Serving collections](#serving-collections)
+		- [GET: retrieving multiple documents](#get-retrieving-multiple-documents)
+			- [Getting specific parts of a collection](#getting-specific-parts-of-a-collection)
+			- [Searching for documents](#searching-for-documents)
+			- [Using a custom query](#using-a-custom-query)
+			- [Sorting collections](#sorting-collections)
+		- [POST: adding new documents](#post-adding-new-documents)
+	- [Serving documents](#serving-documents)
+		- [GET: retrieving single documents](#get-retrieving-single-documents)
+		- [DELETE: removing documents](#delete-removing-documents)
+		- [PUT and PATCH: updating documents](#put-and-patch-updating-documents)
+	- [Serving document properties](#serving-document-properties)
+		- [GET: retrieving document properties](#get-retrieving-document-properties)
+		- [DELETE: removing document properties](#delete-removing-document-properties)
+		- [PUT and PATCH: updating document properties](#put-and-patch-updating-document-properties)
+		- [POST: adding sub-documents to document arrays](#post-adding-sub-documents-to-document-arrays)
+- [Custom resources](#custom-resources)
+- [Extending resources](#extending-resources)
+	- [Overriding handlers](#overriding-handlers)
 	- [Sub-resources](#sub-resources)
-- [Built-in resource definition helpers](#built-in-resource-definition-helpers)
-	- [Native resources](#native-resources)
-	- [Mongoose resources](#mongoose-resources)
-		- [Basics](#basics)
-		- [Subresource types](#subresource-types)
-			- [Model resources](#model-resources)
-			- [Document resources](#document-resources)
-			- [DocumentArray resources](#documentarray-resources)
-			- [Document value resources](#document-value-resources)
-		- [Options](#options)
-			- [`query`](#query)
-			- [`sort`](#sort)
-			- [`toObject`](#toobject)
-			- [`overrides`](#overrides)
-			- [`key`](#key)
-			- [`request`](#request)
-		- [Aggregate resources](#aggregate-resources)
-- [Miscellaneous](#miscellaneous)
-	- [Removing resources](#removing-resources)
-	- [Calling callbacks](#calling-callbacks)
+	- [Setting options](#setting-options)
+	- [Hooks](#hooks)
+- [Extending yarm](#extending-yarm)
 
-Usage
------
+
+
+## Installation
+
+Use npm to install yarm, or add yarm to your package.json dependencies.
+
+```
+$ npm install yarm
+```
+
+yarm has no dependencies, however it is intended to be used with Express and will have additional features if mongoose is present.
+
+
+
+## Usage
+
+
+### Basics
+
+Use yarm as any other Express middleware.
 
 ```javascript
-var app = require("express")(),
-	yarm = require("yarm");
-
-yarm.resource("greeting", {
-	get: function(req, cb) {
-		cb(null, { hello: "world" });
-	}
-});
+var app = require("express")();
+var yarm = require("yarm");
 
 app.use("/rest", yarm());
 app.listen(80);
 ```
 
-```sh
+
+### Serving native javascript resources
+
+Use `yarm.native()` to serve native Javascript objects or arrays.
+
+```javascript
+var app = require("express")();
+var yarm = require("yarm");
+
+app.use("/rest", yarm());
+
+yarm.native("me", {
+  name: "Alice",
+  age: 30
+});
+
+yarm.native("friends", [
+  "Bob",
+  "Charlie"
+]);
+
+app.listen(80);
+```
+
+```
+$ curl http://localhost/rest/me
+{
+  "name": "Alice",
+  "age": 30
+}
+
+$ curl http://localhost/rest/me/name
+Alice
+
+$ curl http://localhost/rest/friends
+{
+  "_count": 2,
+  "_items": [ "Bob", "Charlie" ]
+}
+
+$ curl http://localhost/rest/friends/1
+Charlie
+```
+
+Head on to the [Native resources](#native-resources) chapter for more details.
+
+
+### Serving mongoose models and aggregates
+
+When mongoose is available, you can use `yarm.mongoose()` to serve models.
+
+```javascript
+var app = require("express")();
+var yarm = require("yarm");
+var mongoose = require("mongoose");
+
+app.use("/rest", yarm());
+
+var postSchema = new mongoose.Schema({
+  title: String,
+  text: String,
+  comments: [{
+    author: String,
+    text: String
+  }]
+});
+
+var Post = mongoose.model("post", postSchema);
+
+yarm.mongoose("posts", Post);
+
+app.listen(80);
+```
+
+```
+$ curl http://localhost/rest/posts?skip=10&limit=1
+{
+  "_count": 42,
+  "_items": [
+    {
+      "_id": "507f191e810c19729de860ea",
+      "title": "My 11th post",
+      "text": "Hello, World",
+      "comments": [
+        {
+          "author": "Bob",
+          "text": "First !"
+        }
+      ]
+    }
+  ]
+}
+
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "My 11th post",
+  "text": "Hello, World",
+  "comments": [
+    {
+      "author": "Bob",
+      "text": "First !"
+    }
+  ]
+}
+
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea/comments/0/text
+First !
+```
+
+Head on to the [Mongoose resources](#mongoose-resources) chapter for more details.
+
+
+### Serving custom resources
+
+Use `yarm.resource` to define resources with custom handlers.
+
+```javascript
+var app = require("express")(),
+var yarm = require("yarm");
+
+yarm.resource("greeting")
+  .get(function(req, cb) {
+    cb(null, { hello: "world" });
+  })
+  .sub("french")
+    .get(function(req, cb) {
+      cb(null, { bonjour: "tout le monde" });
+    });
+
+yarm.resource("greeting/pirate")
+  .get(function(req, cb) {
+    cb(null, { arrrrr: "arrrrrr" });
+  });
+
+app.use("/rest", yarm());
+app.listen(80);
+```
+
+```
 $ curl http://localhost/rest/greeting
-{ "hello": "world" }
-```
-
-Defining resources
-------------------
-
-Resources are defined by calling `yarm.resource("name", definition)`.  The
-definition should have methods to handle the different HTTP request verbs.  When
-a request is made on a resource that does not have the corresponding methods,
-yarm sends a 405 Not Allowed response to the client.
-
-### Handling GET and HEAD requests
-
-yarm allows two main kinds of resources when handling GET and HEAD requests:
-documents and collections.  Documents are basic resources, while collections are
-sets of documents.  yarm distinguishes between the two based on the methods
-available on the resource definition.
-
-#### Documents
-
-To enable document-type GET handling,  you just need to set a `get` method on
-the resource definition.
-
-```javascript
-yarm.resource("greeting", {
-	get: function(req, cb) {
-		cb(null, { hello: "world" });
-	}
-});
-```
-
-```sh
-$ curl http://localhost/rest/greeting
-{ "hello": "world" }
-```
-
-The `get` method receives the Express request object and a callback to call with
-an optional `Error` instance, and with the resource representation to send to
-the client.  This representation can be one of the following:
-
-* A plain Javascript object to be sent as JSON
-* A string, `Buffer` instance, or readable stream
-* An instance of `yarm.ResponseBody`.  This enables setting the response
-  mimetype.
-* An instance of `yarm.ResponseFile`.  This enables sending files with a
-  specified mimetype, using Express' `res.sendfile()`.
-* `null` or `undefined` to send a 204 No Content response
-
-Here are some examples:
-
-```javascript
-yarm.resource("html", {
-	get: function(req, cb) {
-		// You can use strings, Buffers or readable streams here
-		cb(null, new yarm.ResponseBody("<div>Hello</div>", "text/html"));
-	}
-});
-
-yarm.resource("song", {
-	get: function(req, cb) {
-		cb(null, new yarm.ResponseFile(
-			"/home/bob/music/song.ogg",
-			"audio/ogg"
-		));
-	}
-});
-
-yarm.resource("empty", {
-	get: function(req, cb) {
-		cb();
-	}
-});
-```
-
-Of course you can use the request object to determine the best response to send
-to the client:
-
-```javascript
-yarm.resource("greeting", {
-	get: function(req, cb) {
-		if (req.accept("text, json") === "json") {
-			cb(null, { hello: "world" });
-		} else {
-			cb(null, "Hello World");
-		}
-	}
-});
-```
-
-When you pass an `Error` instance to the callback, yarm will send a 500 response
-to the client, along with the error message.  You can customize the status code
-by setting a `code` property on the `Error` instance.
-
-```javascript
-yarm.resource("teapot", {
-	get: function(req, cb) {
-		var err = new Error("I'm a teapot");
-		err.code = 418;
-
-		cb(err);
-	}
-});
-```
-
-If you pass an options object with a truthy `errorStack` when initializing
-yarm, the whole error stack will be sent as a response.  You may want to avoid
-this on production environments.
-
-```javascript
-app.use("/rest", yarm({ errorStack: true }));
-```
-
-#### Collections
-
-To enable collection-type GET handling, define two `count` and `list` methods.
-
-```javascript
-yarm.resource("collection", {
-	count: function(req, cb) {
-		cb(null, 3);
-	},
-
-	list: function(req, offset, limit, cb) {
-		var items = [1, 2, 3];
-
-		if (limit > 0) {
-			items = items.slice(offset, offset + limit);
-		} else {
-			items = items.slice(offset);
-		}
-
-		cb(null, items);
-	}
-});
-```
-
-The `count` method receives the request object and a callback as parameters, and
-should call the callback with an optional `Error` instance and the total number
-of resources in the collection as parameters.  The `list` method receives the
-request object, the requested offset and limit, and a callback as parameters,
-and should call the callback with an optional `Error` instance and an array
-corresponding to the requested items as parameters.  A limit of zero indicates
-that the client requests as many items as possible.  Note that yarm will not
-check whether what you send from `list` abides by the requested offset and
-limit.  It won't even check whether you sent an actual array.
-
-When handling GET requests on collections, yarm will respond with a JSON object
-containing a `_count` key with the total collection item count, and a `_items`
-key with the item array sent by `list`.
-
-```sh
-$ curl http://localhost/rest/collection
 {
-	"_count": 3,
-	"_items": [1, 2, 3]
+  "hello": "world"
+}
+
+$ curl http://localhost/rest/greeting/french
+{
+  "bonjour": "tout le monde"
+}
+
+$ curl http://localhost/rest/greeting/pirate
+{
+  "arrrrr": "arrrrrr"
 }
 ```
 
-yarm supports two querystring parameters when GETting collections: `offset` and
-`limit`.
+Head on to the [Custom resources](#custom-resources) chapter for more details.
 
-```sh
-$ curl http://localhost/rest/collection?offset=1&limit=1
-{
-	"_count": 3,
-	"_items": [2]
-}
-```
 
-When no limit is requested, yarm defaults to 10 items.  You can override this
-default limit by passing an options object with a `defaultLimit` property when
-initializing yarm.
+### Extending served resources
+
+yarm allows adding and replacing handlers for any resource or sub-resource. This enables restricting or extending the behaviour of the default native and mongoose resource handlers, as well as defining very complex custom resource hierarchies.
 
 ```javascript
-app.use("/rest", yarm({ defaultLimit: 2 }));
-```
 
-```sh
-$ curl http://localhost/rest/collection
-{
-	"_count": 3,
-	"_items": [1, 2]
+yarm.<whatever>()
+  .get(function(req, cb) {
+    // Override GET handler here
+  });
+
+function notAllowed(req, cb) {
+  cb(null, "Nope, sorry :(");
 }
+
+yarm.native("readonly", myObject)
+  .put(notAllowed)
+  .post(notAllowed)
+  .del(notAllowed)
+    .sub("*")
+    .put(notAllowed)
+    .post(notAllowed)
+    .del(notAllowed);
+
+yarm.resource("already/defined/path")
+  .get(function(req, cb) {
+    // Will not alter 'already' nor 'already/defined' handlers,
+    // nor those for 'already/defined/other' if they are defined
+  });
 ```
 
-Note that when a `get` method also exists on the resource definition, it will
-take precedence over the `count` and `list` methods and the resource will be
-handled as a document.
+Head on to the [Extending resources](#extending-resources) chapter for more details.
 
-### Handling DELETE requests
 
-Deleting a resource is enabled by defining a `del` method.  This method has the
-same prototype as the `get` method.  You may pass content to the callback as its
-second parameter, or you may prefer sending a 204 No Content response.
+
+## Native resources
+
+
+### Definition
+
+The `yarm.native()` helper allows serving plain Javascript objects and arrays. Served object and arrays will allow access to any property path, including array indices).
 
 ```javascript
-var deleted = false;
-
-yarm.resource("deletable", {
-	del: function(req, cb) {
-		deleted = true;
-
-		// No content
-		cb();
-	},
-
-	get: function(req, cb) {
-		if (deleted) {
-			cb();
-		} else {
-			cb(null, { hello: "world" });
-		}
-	}
+yarm.native("object", {
+  foo: "bar",
+  sub: {
+    array: [1, 2, 3, 4, 5],
+    property: "baz"
+  }
 });
 ```
 
-### Handling PUT and PATCH requests
-
-Replacing and updating a resource is enabled by defining a `put` method.  This
-method will receive the request object, a boolean indicating whether this is a
-PATCH request and a callback.  As for the other methods, you should call the
-callback with an optional `Error` instance and with the response body as
-parameters.
-
-```javascript
-var object = { hello: "world" };
-
-yarm.resource("updateable", {
-	put: function(req, isPatch, cb) {
-		// app.use(express.json()) is needed here so that req.body is defined
-		var body = req.body;
-
-		if (isPatch) {
-			Object.keys(body).forEach(function(key) {
-				object[key] = body[key];
-			});
-		} else {
-			object = body;
-		}
-
-		cb();
-	},
-
-	get: function(req, cb) {
-		cb(null, object);
-	}
-});
 ```
-
-```sh
-$ curl http://localhost/rest/greeting
-{ "hello": "world" }
-$ curl -X PATCH --data "{ \"foo\": \"bar\" }" http://localhost/rest/greeting
-$ curl http://localhost/rest/greeting
-{ "hello": "world", "foo": "bar" }
-$ curl -X PUT --data "{ \"foo\": \"bar\" }" http://localhost/rest/greeting
-$ curl http://localhost/rest/greeting
-{ "foo": "bar" }
-```
-
-Note: you should add the `--header "Content-Type: application/json"` option to
-the curl command line for those examples to work as intented.  I omitted it for
-the sake of readability.
-
-There is currently no way to enable only one of the PUT and PATCH method at a
-time with yarm.  You can still implement that manually however.
-
-```javascript
-yarm.resource("patchOnly", {
-	put: function(req, isPatch, cb) {
-		if (!isPatch) {
-			var err = new Error("Not allowed");
-			err.code = 405;
-			cb(err);
-			return;
-		}
-
-		// actual PATCH handling
-	}
-});
-```
-
-### Handling POST requests
-
-To enable POST requests on a resource, define a `post` method.  It will receive
-the request object and a callback to call with an optional `Error` instance and
-the response body as parameters.  POST requests may make more sense on
-collections than documents, but in the end it's up to you.
-
-
-```javascript
-var array = [1, 2, 3];
-
-yarm.resource("collection", {
-	count: function(req, cb) {
-		cb(null, array.length);
-	},
-
-	list: function(req, offset, limit, cb) {
-		var items;
-
-		if (limit > 0) {
-			items = array.slice(offset, offset + limit);
-		} else {
-			items = array.slice(offset);
-		}
-
-		cb(null, items);
-	},
-
-	post: function(req, cb) {
-		array.push(req.body);
-		cb();
-	}
-});
-```
-
-```sh
-$ curl http://localhost/rest/collection
+$ curl http://localhost/rest/object
 {
-	"_count": 3,
-	"_items": [1, 2, 3]
+  "foo": "bar",
+  "sub": {
+    "array": [1, 2, 3, 4, 5],
+    "property": "baz"
+  }
 }
-$ curl -X POST --data "4" http://localhost/rest/collection
-$ curl http://localhost/rest/collection
+
+$ curl http://localhost/rest/object/sub/property
+baz
+
+$ curl http://localhost/rest/object/sub/array/2
+3
+```
+
+Arrays are served as collections, i.e. yarm will respond with a JSON object containing the total item count and a subset of the array items.
+
+```
+$ curl http://localhost/rest/object/sub/array
 {
-	"_count": 4,
-	"_items": [1, 2, 3, 4]
+  "_count": 5,
+  "_items": [1, 2, 3, 4, 5]
 }
 ```
 
-If you would like to insert items at a specific index in the collection, you can
-implement it using a custom querystring parameter.
+By default, yarm returns at most 10 items in collection responses.  You can change this default by passing a `defaultLimit` option to the middleware.
 
 ```javascript
-var array = [1, 2, 3];
+app.use(yarm({ defaultLimit: 100 }));
+```
 
-yarm.resource("collection", {
-	/* ... */
+Clients can also specify an offset and limit when requesting collections.  The requested limit will override the default value, and requesting a limit of 0 will make yarm return all items from the collection, starting at the specified offset.  In any case, the "_count" property will always return the total item count in the collection.
 
-	post: function(req, cb) {
-		if (req.params("index")) {
-			array.splice(Number(req.params("index")), 0, req.body);
-		} else {
-			array.push(req.body);
-		}
+```
+$ curl http://localhost/rest/object/sub/array?limit=1
+{
+  "_count": 5,
+  "_items": [1]
+}
 
-		cb();
-	}
+$ curl http://localhost/rest/object/sub/array?skip=2&limit=0
+{
+  "_count": 5,
+  "_items": [3, 4, 5]
+}
+```
+
+
+### Modification
+
+Native yarm resources can be modified using PUT, PATCH, POST and DELETE HTTP methods.
+
+Note that the examples below assume you have set up middleware to parse JSON request bodies (such as `express.json()` or `express.bodyParser()`).
+
+#### DELETE
+
+The DELETE method allows removing object properties or array items.
+
+```
+$ curl -X DELETE http://localhost/rest/object/sub/array/2
+$ curl http://localhost/rest/object/sub
+{
+  "array": [1, 2, 4, 5],
+  "property": "baz"
+}
+
+$ curl -X DELETE http://localhost/rest/object/sub/property
+$ curl http://localhost/rest/object/sub
+{
+  "array": [1, 2, 3, 4, 5]
+}
+```
+
+Note that clients cannot DELETE the root resource itself.
+
+```
+$ curl -i -X DELETE http://localhost/rest/object
+HTTP/1.1 405 Method not allowed
+```
+
+#### PUT
+
+The PUT method allows replacing object properties or array items.
+
+```
+$ curl -X PUT -d '{ "newArray": [1, 2, 3] }' http://localhost/rest/object/sub
+$ curl http://localhost/rest/object/sub
+{
+  "newArray": [1, 2, 3]
+}
+```
+
+If a `_value` key is present in the request body, its value will be used instead.  This allows passing values that are not valid JSON (eg. strings, numbers or booleans).
+
+```
+$ curl -X PUT -d '{ "_value": "foo" }' \
+  http://localhost/rest/object/sub/newArray/0
+
+$ curl http://localhost/rest/object/sub
+{
+  "newArray": ["foo", 2, 3]
+}
+```
+
+As with the DELETE method, clients cannot PUT the root resource itself.
+
+```
+$ curl -i -X PUT -d '{}' http://localhost/rest/object
+HTTP/1.1 405 Method not allowed
+```
+
+#### PATCH
+
+The PATCH method allows adding and changing properties in an object.
+
+```
+$ curl -X PATCH -d '{"foo":"bar"}' http://localhost/rest/object/sub
+$ curl http://localhost/rest/object/sub
+{
+  "newArray": ["foo", 2, 3],
+  "foo": "bar"
+}
+
+$ curl -X PATCH -d '{"newArray":[],"num":42}' http://localhost/rest/object/sub
+$ curl http://localhost/rest/object/sub
+{
+  "newArray": [],
+  "foo": "bar",
+  "num": 42
+}
+```
+
+The PATCH method is only available on object sub-resources.  Attempting to PATCH the root resource or a non-object sub-resource will result in a "405 Method not allowed" response.
+
+#### POST
+
+The POST method allows adding items to arrays or properties to objects.
+
+When adding items to arrays, as with the PUT method, the `_value` key in the request body will be used when it is present.
+
+```
+$ curl -X POST -d '{"name":"Alice"}' http://localhost/rest/object/sub/newArray
+$ curl http://localhost/rest/object/sub/newArray
+{
+   "_count": 1,
+   "_items": [
+     { "name": "Alice"}
+   ]
+}
+
+$ curl -X POST -d '{"_value":"Bob"}' http://localhost/rest/object/sub/newArray
+$ curl http://localhost/rest/object/sub/newArray
+{
+   "_count": 2,
+   "_items": [
+     { "name": "Alice" },
+     "Bob"
+   ]
+}
+```
+
+When adding properties to objects, both a `_key` and a `_value` keys must be present in the request body or yarm will respond with "400 Bad request".
+
+```
+$ curl -X POST -d '{"_key":"age","_value":30}' \
+  http://localhost/rest/object/sub/newArray/0
+
+$ curl http://localhost/rest/object/sub/newArray
+{
+   "_count": 2,
+   "_items": [
+     {
+       "name": "Alice",
+       "age": 30
+     },
+     "Bob"
+   ]
+}
+```
+
+
+### Options
+
+As with any other yarm resource, you can set options by using `resource.set(option, value)`.
+
+By default, options apply both to the resource and to all sub-resources, but you can prevent the option to apply to sub-resources with `resource.set(option, value, true)`.  You can also set options only on sub-resources using `resource.sub("path/to/subresource").set(...)`.  For more information on how options work, see [Setting options](#setting-options).
+
+The following options are supported by native resources:
+
+* `rawArrays` (default `false`): when `true`, serve arrays as is instead of collections.  The whole array content will be returned to clients, instead of an object with `_count` and `_items` keys.  Note that clients cannot use `skip` or `limit` request parameters on raw arrays.
+
+```javascript
+yarm.native("array", [1, 2, 3]).set("rawArrays", true);
+```
+
+```
+$ curl http://localhost/rest/array
+[1, 2, 3]
+
+$ curl http://localhost/rest/array?skip=1&limit=1
+[1, 2, 3]
+```
+
+* `objectCollections` (default `false`): when `true`, serve objects as collections of their keys.  Properties can still be accessed the same way.
+
+```javascript
+yarm.native("object", {
+  "foo": "bar",
+  "sub": {
+    "array": [1, 2, 3, 4, 5],
+    "property": "baz"
+  }
+}).set("objectCollections", true);
+```
+
+```
+$ curl http://localhost/rest/object
+{
+  "_count": 2,
+  "_items": [ "foo", "sub" ]
+}
+
+$ curl http://localhost/rest/object/sub/property
+baz
+```
+
+* `sparseArrays` (default `false`): when `true`, DELETE requests on array items will leave an `undefined` hole in the array instead of splicing the array.
+
+```javascript
+yarm.native("array", [1, 2, 3]).set("sparseArrays", true);
+```
+
+```
+$ curl -X DELETE http://localhost/rest/array/1
+$ curl http://localhost/rest/array
+{
+  "_count": 3,
+  "_items": [1, undefined, 3]
+}
+```
+
+
+
+## Mongoose resources
+
+
+### Definition
+
+When mongoose is present, you can use `yarm.mongoose` to serve models as resources.
+
+```javascript
+var Post = mongoose.model(PostSchema)
+yarm.mongoose("posts", Post);
+```
+
+You can also use `yarm.aggregate` to serve aggregates as resources.  Contrary to models, aggregates are read-only: only GET requests are supported on aggregate (and sub-property) URLs.
+
+```javascript
+var Post = mongoose.model(PostSchema)
+
+// MongoDB aggregate pipeline
+var pipeline = [
+  { $project : {
+    author : 1,
+    tags : 1,
+  } },
+  { $unwind : "$tags" },
+  { $group : {
+    _id : "$tags",
+    authors : { $addToSet : "$author" }
+  } }
+];
+
+yarm.aggregate("authorsByTag", Post, pipeline);
+```
+
+
+### Serving collections
+
+#### GET: retrieving multiple documents
+
+Models and aggregates are served as collections, i.e. yarm will respond with a JSON object containing the total item count and a subset of the collection items.
+
+```
+$ curl http://localhost/rest/posts
+{
+  "_count": 50,
+  "_items": [
+    {
+      "_id": "507f191e810c19729de860ea",
+      "title": "My first post",
+      "text": "Hello, World"
+    },
+    {
+      "_id": "507f191e810c19729de62fc7",
+      "title": "My first post",
+      "text": "Hello again, World"
+    }
+    ...
+  ]
+}
+```
+
+##### Getting specific parts of a collection
+
+By default, yarm returns at most 10 items in collection responses.  You can change this default by passing a `defaultLimit` option to the middleware.
+
+```javascript
+app.use(yarm({ defaultLimit: 100 }));
+```
+
+Clients can also specify an offset and limit when requesting collections.  The requested limit will override the default value, and requesting a limit of 0 will make yarm return all items from the collection, starting at the specified offset.  In any case, the "_count" property will always return the total item count in the collection.
+
+```
+$ curl http://localhost/rest/posts?limit=1
+{
+  "_count": 50,
+  "_items": [
+    {
+      "_id": "507f191e810c19729de860ea",
+      "title": "My first post",
+      "text": "Hello, World"
+    }
+  ]
+}
+
+$ curl http://localhost/rest/posts?skip=49&limit=0
+{
+  "_count": 50,
+  "_items": [
+    {
+      "_id": "507f191e810c19729d5362b8",
+      "title": "My 50th post",
+      "text": "This is getting boring..."
+    }
+  ]
+}
+```
+
+##### Searching for documents
+
+Clients can request documents matching a specific query in a collection using the `query` request parameter.  Here are a few examples overviewing what you can do with queries.
+
+```
+# All posts with title equal to "First post"
+curl http://localhost/rest/posts?query=title:First Post
+
+# All posts not written by me
+curl http://localhost/rest/posts?query=author!me
+
+# All posts matching the regexp /post/ (make sure the client URL-encodes the
+# query parameter)
+curl http://localhost/rest/posts?query=title:/post/
+
+# All posts not written by the nsa
+curl  http://localhost/rest/posts?query=author!/\.nsa\.gov$/
+
+# Regexps can be made case-insensitive
+curl http://localhost/rest/posts?query=title:/post/i
+
+# Logical expression, AND operators have priority over OR operators
+curl http://localhost/rest/posts?query=title:/post/ OR text:/hello/i AND isPublic:1
+```
+
+Clients can mix document queries with the `skip` and `limit` parameters.  The `_count` property in the returned object will always be the total number of documents matching the query in the collection.
+
+##### Using a custom query
+
+When serving model resources, you can alter the query used to retrieve documents by setting the `query` option on a model resource.
+
+```javascript
+yarm.mongoose("posts", Post)
+  .set("query", function() {
+    return Post.find({ isPublic: true });
+  });
+```
+
+Aggregate resources don't support custom queries, as you can already customize the aggregation pipeline.
+
+##### Sorting collections
+
+When serving model resources, you could use a custom query to sort collections, but you may prefer using the `sort` option instead.
+
+```javascript
+// Instead of using this:
+yarm.mongoose("posts", Post)
+  .set("query", function() {
+    return Post.find({ isPublic: true }).sort({ date: -1 });
+  });
+
+// It is easier to use the sort option
+yarm.mongoose("posts", Post)
+  .set("query", function() {
+    return Post.find({ isPublic: true });
+  })
+  .set("sort", { date: -1 });
+```
+
+Aggregate resources don't support a `sort` option, as you can already sort documents in the aggregation pipeline.
+
+#### POST: adding new documents
+
+Clients can POST new documents to model collections.
+
+```
+$ curl -X POST -d '{"title":"New Post","text":"Whatever..."}' \
+  http://localhost/rest/posts
+
+$ curl http://localhost/rest/posts?query=title:New Post
+{
+  "_count": 1,
+  "_items": [
+    {
+      "_id": "507f191e810c1972967fd7c3",
+      "title": "New Post",
+      "text": "Whatever..."
+    }
+  ]
+}
+```
+
+
+### Serving documents
+
+#### GET: retrieving single documents
+
+By default, collection documents are accessible by adding the document ObjectID value to the collection URL.
+
+```
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "My first post",
+  "text": "Hello, World"
+}
+```
+
+If your documents have a more user-friendly identifier property, you can use the `key` option to tell `yarm.mongoose` to use this property instead.
+
+Note that this option is not available for aggregate resources as the aggregation pipeline already allows you to map the `_id` property to whatever value you want.
+
+```javascript
+yarm.mongoose("posts", Post)
+  .set("key", "postId");
+```
+
+```
+$ curl http://localhost/rest/posts/my-first-post
+{
+  "_id": "507f191e810c19729de860ea",
+  "postId": "my-first-post",
+  "title": "My first post",
+  "text": "Hello, World"
+}
+```
+
+You can change the way yarm returns documents by using mongoose toObject option. This option can be set on the model resource directly.  Refer to the [mongoose documentation][mongoose-toobject] for more information on how this option works.
+
+Again, this opton is not available for aggregate resources, as the aggregation pipeline already allows you to tailor documents the way you want.
+
+```javascript
+yarm.mongoose("posts", Post)
+  .set("toObject", {
+    // Include virtual properties in output
+    virtuals: true,
+
+    // Hide _id property
+    toObject: function(doc, ret, options) {
+      delete ret._id;
+    }
+  });
+```
+
+When the `toObject` option is set on the model resource, it will apply to responses to both collection requests and document requests.  You can specify a different toObject option for sub-resources, refer to [Setting options](#setting-options) for more information.
+
+#### DELETE: removing documents
+
+Clients can remove documents by sending DELETE requests on the document URL.
+
+```
+$ curl -X DELETE http://localhost/rest/posts/my-first-post
+$ curl -i http://localhost/rest/posts/my-first-post
+HTTP/1.1 404 Not found
+```
+
+#### PUT and PATCH: updating documents
+
+Clients can update documents by sending PUT or PATCH requests on the document URL.  For now, both methods behave as a PATCH request, that is, they update all fields that are present in the request body, without touching other fields.
+
+```
+$ curl -X PATCH -d '{"title":"New title"}' \
+  http://localhost/rest/posts/507f191e810c19729de860ea
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "New title",
+  "text": "Hello, World"
+}
+```
+
+### Serving document properties
+
+#### GET: retrieving document properties
+
+As with native resources, clients can request any document property (or subproperty).
+
+```
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea/title
+My first post
+
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea/tags
+["homepage", "public", "hello"]
+```
+
+When your model schema includes document arrays, they are served as collections. Clients can use the `skip`, `limit` and `query` request parameters with those collections as well.
+
+```javascript
+var PostSchema = new mongoose.Schema({
+  title: String,
+  text: String,
+  comments: [{
+    author: String,
+    text: String
+  }]
+})
+
+var Post = mongoose.model("posts", PostSchema);
+
+yarm.mongoose("posts", Post);
+```
+
+```
+$ curl http://localhost/rest/posts/my-post/comments
+{
+  "_count": 3,
+  "_items": [
+    {
+      _id: "507f191e810c19729f526a7",
+      author: "Alice",
+      text: "First !"
+    },
+    ...
+  ]
+}
+
+$ curl http://localhost/rest/posts/my-post/comments?query=author:Alice
+{
+  "_count": 1,
+  "_items": [
+    {
+      _id: "507f191e810c19729f526a7",
+      author: "Alice",
+      text: "First !"
+    }
+  ]
+}
+
+$ curl http://localhost/rest/posts/my-post/comments/507f191e810c19729f526a7
+{
+  _id: "507f191e810c19729f526a7",
+  author: "Alice",
+  text: "First !"
+}
+
+$ curl http://localhost/rest/posts/my-post/comments/507f191e810c19729f526a7/text
+First !
+```
+
+When your model schema contains references to other collections, you may want to adjust the `query` option on the mongoose resource so that mongoose populates those references.
+
+```javascript
+var PersonSchema = new mongoose.Schema({ ... });
+var Person = mongoose.model("person", PersonSchema);
+
+var CommentSchema = new mongoose.Schema({ ... });
+var Comment = mongoose.model("comment", CommentSchema);
+
+var PostSchema = new mongoose.Schema({
+  author: { type: mongoose.Schema.types.ObjectId, ref: "person" },
+  comments: [{ type: mongoose.Schema.types.ObjectId, ref: "comment" }]
+});
+var Post = mongoose.model("post", PostSchema);
+
+yarm.mongoose("posts", Post)
+  .set("query", function() {
+    return Post.find().populate("author comments");
+  });
+```
+
+#### DELETE: removing document properties
+
+Clients can remove document properties or sub-properties by sending a DELETE request on the property URL.
+
+```
+$ curl -X DELETE http://localhost/posts/my-first-post/comments/507f191e810c19729f526a7
+```
+
+#### PUT and PATCH: updating document properties
+
+Clients can update document properties or sub-properties by sending PUT or PATCH requests on the property URL.  If the request body contains a `_value` field, it will be used instead.  This allows passing values that would otherwise not be valid JSON (strings, numbers, booleans, ...).
+
+```
+$ curl -X PATCH -d '{"_value":"New title"}' \
+  http://localhost/rest/posts/507f191e810c19729de860ea/title
+
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "New title",
+  "text": "Hello, World"
+}
+```
+
+#### POST: adding sub-documents to document arrays
+
+When your schema contains a document array, clients can add new sub-documents by sending POST requests on the document array URL.
+
+```
+$ curl -X POST -d '{"author":"Bob","text":"This is a nice post !"}' \
+  http://localhost/rest/posts/507f191e810c19729de860ea/comments
+```
+
+
+
+## Custom resources
+
+You can define bare resources (that is, resources without any default method handlers) using `yarm.resource()`.
+
+```javascript
+var resource = yarm.resource("myResource");
+var deepResource = yarm.resource("path/to/deep/resource");
+```
+
+The whole point of defining bare resource is to define custom handlers, which is described in the next chapter.
+
+
+
+## Extending resources
+
+All yarm resources share the same methods and can all be extended the same way, whether you start with a native resource, a mongoose resource, a bare resource or some resource defined using a custom extension.  Methods calls on resources can be chained, which is why any function defining a resource (including the built-in helpers) return the resource.
+
+
+### Overriding handlers
+
+Defining method handlers is just a matter of calling one of the `.get()`, `.put()`, `.post()` or `.delete()` methods on a resource.  All those methods expect a handler function as a parameter, and can be chained as they all return the resource.
+
+```javascript
+resource
+  .get(function(req, cb) {
+    // GET handler
+  })
+  .put(function(req, isPatch, cb) {
+    // PUT and PATCH handler
+  })
+  .post(function(req, cb) {
+    // POST handler
+  })
+  .del(function(req, cb) {
+    // DELETE handler
+  });
+```
+
+yarm always chooses the last defined handler for a resource, which enables overriding method handlers defined by built-in resource definition helpers.
+
+```javascript
+yarm.mongoose("posts", Post)
+  .get(function(req, cb) {
+    cb(null, "Overriden !");
+  });
+```
+
+```
+$ curl http://localhost/rest/posts
+Overriden !
+```
+
+All method handlers receive the Express request object as their first parameter (with all facilities enabled by Express or any middleware used before yarm), and a callback as their last parameter.  The PUT and PATCH handler receives an additional boolean argument which indicates whether the request is a PATCH request (the handler is common because both methods work in a very similar way).
+
+Calling the callback with an Error object as its first argument will make yarm send a HTTP 500 response, with the error message as the response body.
+
+```javascript
+yarm.resource("error")
+  .get(function(req, cb) {
+    cb(new Error("Oh noes !"));
+  });
+```
+
+```
+$ curl -i http://localhost/rest/error
+HTTP/1.1 500 Internal server error
+Oh noes !
+```
+
+There are several ways to call the callback with a valid response.  You can call `cb(null, body[, mimetype]);` to send the response body with an optional mimetype, where `body` can be any of:
+
+* A string
+* A Buffer instance
+* A readable stream
+* A plain object (which will be JSON.stringify-ed by Express)
+* `null` or `undefined`, in which case yarm will send a "204 No content" response
+
+The callback also has built-in helpers for other kinds of responses:
+
+* `cb.file(error, filepath[, mimetype])` to send the content of a file (yarm will use Express' `res.sendfile()`)
+* `cb.created()` to send a "201 Created" response
+* `cb.noContent()` to send a "204 No content" response
+* `cb.badRequest()` to send a "400 Bad request" response
+* `cb.notFound()` to send a "404 Not found" response
+* `cb.methodNotAllowed()` to send a "405 Method not allowed" response
+* `cb.notImplemented()` to send a "501 Not implemented" response
+* `cb.status(code[, body])` to send a custom HTTP status code and response body.
+
+To serve a resource as a collection, you must call both its `.count()` and `.list()` methods.
+
+```javascript
+resource
+  .count(function(req, cb) {
+    cb(null, totalCollectionCount);
+  })
+  .list(function(req, offset, limit, cb) {
+    cb(null, collectionItems(offset, limit));
+  });
+```
+
+The handlers for the `.count()` and `.list()` methods work the same way as other handlers, except the list handler receives additional `offset` and `limit` arguments.  The offset defaults to 0 if not specified by the client, and the limit defaults to yarm defaultLimit option (default 10).  A limit of 0 indicates a request for all items until the end of the collection.  The count handler is expected to call the callback with the total item count in the collection, and the limit handler should pass an array of collection items matching the specified offset and limit.
+
+Count/list and get handlers override each other.  You can also decide to serve the resource as a collection inside a GET handler by calling `cb.list()`.
+
+```javascript
+resource.get(function(req, cb) {
+  if (req.params("asCollection")) {
+    cb.list(countHandler, listHandler);
+  } else {
+    cb(null, "Not a collection, as requested.");
+  }
 });
 ```
 
-```sh
-$ curl http://localhost/rest/collection
-{
-	"_count": 3,
-	"_items": [1, 2, 3]
-}
-$ curl -X POST --data "1.5" http://localhost/rest/collection?index=1
-$ curl http://localhost/rest/collection
-{
-	"_count": 4,
-	"_items": [1, 1.5, 2, 3]
-}
-```
+
 
 ### Sub-resources
 
-You can enable accessing sub-resources on any resource in yarm, no matter
-whether the resource is a document or a collection.  To enable sub-resource
-lookup on a resource, define a `sub` method on that resource.  This method will
-receive the sub-resource name and a callback as arguments.  It should call the
-callback with an optional `Error` instance and the sub-resource definition as
-parameters.
+There are several ways of defining handlers on a sub-resource.  You can pass the full path to `yarm.resource()`, pass the sub-path to the `.sub()` method of a resource, or chain several `.sub()` calls.  The following examples are all equivalent.
 
 ```javascript
-yarm.resource("greeting", {
-	get: function(req, cb) {
-		cb(null, { hello: "world" });
-	},
+yarm.resource("path/to/resource")
+  .get(function(req, cb) { cb(null, "Hey !"); });
 
-	sub: function(name, cb) {
-		if (name === "french") {
-			cb(null, {
-				get: function(req, cb) {
-					cb(null, { bonjour: "tout le monde" });
-				}
-			});
-		} else {
-			cb();
-		}
-	}
+yarm.resource("path/to")
+  .sub("resource")
+    .get(function(req, cb) { cb(null, "Hey !"); });
+
+yarm.resource("path")
+  .sub("to/resource")
+    .get(function(req, cb) { cb(null, "Hey !"); });
+
+yarm.resource("path")
+  .sub("to")
+    .sub("resource")
+      .get(function(req, cb) { cb(null, "Hey !"); });
+```
+
+yarm examines all defined handlers for the requested URL before choosing the last one.  To define (or override) a handler on a resource, you can either chain calls from the original resource definition, or restart from scratch with a new `yarm.resource()` call.
+
+```javascript
+yarm.mongoose("posts", Post)
+  .get(function(req, cb) {
+    cb(null, "GET /posts has been overriden");
+  })
+  .sub("subresource")
+    .get(function(req, cb) {
+      cb(null, "GET /posts/subresource has been overriden")
+    });
+
+
+/* yarm.resource() does not define any handlers, so any other method
+   handlers will still be present */
+
+yarm.resource("posts")
+  .get(function(req, cb) {
+    cb(null, "GET /posts has been overriden again");
+  });
+
+yarm.resource("posts/subresource")
+  .get(function(req, cb) {
+    cb(null, "GET /posts/subresource has been overriden again");
+  });
+
+yarm.resource("posts")
+  .sub("subresource")
+    .get(function(req, cb) {
+      cb(null, "Yet another GET /posts/subresource override...");
+    });
+```
+
+```
+$ curl http://localhost/rest/posts
+GET /posts has been overriden again
+
+$ curl http://localhost/rest/posts/subresource
+Yet another GET /posts/subresource override...
+```
+
+Paths passed to `yarm.resource()` or a resource `.sub()` method can contain parameter matching wildcards and catchall wildcards.  They work just the same as Express pattern matchers (except yarm has no support for regexps *yet*) and handlers can access the part of the URL they matched in `req.params`.
+
+```javascript
+yarm.resource("/posts/:pid/comments/:cid").get(function(req, cb) {
+  cb(null, "Comment #" + req.params.cid + " from post " + req.params.pid);
+});
+
+yarm.resource("/posts/:pid").sub("comments/:cid/*").get(function(req, cb) {
+  cb(null, "There's no such thing as " + req.params["*"] + " in that comment!");
 });
 ```
 
-```sh
-$ curl http://localhost/rest/greeting
-{ "hello": "world" }
-$ curl http://localhost/rest/greeting/french
-{ "bonjour": "tout le monde" }
+```
+$ curl http://localhost/rest/posts/first-post/comments/3
+Comment #3 from post first-post
+
+$ curl http://localhost/rest/posts/first-post/comments/3/foo/bar
+There's no such thing as foo/bar in that comment!
 ```
 
-When the `sub` method calls its callback argument without a resource definition,
-or when a sub-resource is requested on a resource without a `sub` method, yarm
-sends a 404 response to the client.
-
-Of course you can nest sub-resource definitions.  In that case, yarm will chain
-calls to each `sub` method, until it finds the requested resource, until a
-resource in the tree has no such method, or until one calls its callback without
-any resource definition.  In the two latter cases, yarm sends a 404 response to
-the client.
+URL parts matched with wildcards are made available in `req.params` for all handlers, including sub-resource handlers, unless the same parameter name is used more than once on the path.
 
 ```javascript
-yarm.resource("greeting", {
-	get: function(req, cb) {
-		cb(null, { hello: "world" });
-	},
-
-	sub: function(name, cb) {
-		if (name === "french") {
-			cb(null, {
-				get: function(req, cb) {
-					cb(null, { bonjour: "tout le monde" });
-				},
-
-				sub: function(who, cb) {
-					cb(null, {
-						get: function(req, cb) {
-							cb(null, { bonjour: who });
-						}
-					});
-				}
-			});
-		} else {
-			cb();
-		}
-	}
-});
+yarm.resource("post/:pid")
+  .get(function(req, cb) { cb(null, "Post " + req.params.pid); })
+  .sub("comments/:cid")
+    .get(function(req, cb) { cb(null, "Comment #" + req.params.cid + " from post " + req.params.pid); });
 ```
 
-```sh
-$ curl http://localhost/rest/greeting/french/alice
-{ "bonjour": "alice" }
-```
-
-Built-in resource definition helpers
-------------------------------------
-
-### Native resources
+As stated before, yarm will always choose the last defined handler amongst all resource definitions matching the requested URL.  As a consequence, specific handlers (that is, handlers on paths without wildcards) should always be defined last or they will always be overriden by generic handlers (those with wildcards).
 
 ```javascript
-yarm.nativeResource("array", [1, 2, 3]);
+yarm.resource("a/:param").get(function(req, cb) { cb(null, "A: Generic handler"); });
+yarm.resource("a/value").get(function(req, cb) { cb(null, "A: Specific handler"); });
 
-yarm.nativeResource("object", { key: "value" });
-
-yarm.nativeResource("number", 42);
+yarm.resource("b/value").get(function(req, cb) { cb(null, "B: Specific handler"); });
+yarm.resource("b/:param").get(function(req, cb) { cb(null, "B: Generic handler"); });
 ```
 
-### Mongoose resources
+```
+$ curl http://localhost/rest/a/foo
+A: Generic handler
 
-#### Basics
+$ curl http://localhost/rest/a/value
+A: Specific handler
 
-`yarm.mongooseResource()` enables you to automatically define a collection
-resource from a mongoose Model.  Note that this helper is only available when
-mongoose is present.
+$ curl http://localhost/rest/b/foo
+B: Generic handler
+
+$ curl http://localhost/rest/b/value
+B: Generic handler
+```
+
+As the "*" catchall wildcard matches everything until the end of the URL, calling `.sub()` afterwards will have no effect.
 
 ```javascript
-yarm.mongooseResource("model", Model);
+yarm.resource("path/to/*")
+  .get(function(req, cb) { cb(null, "Catchall handler"); })
+  .sub("bar")
+    .get(function(req, cb) { cb(null, "Forever alone..."); });
 ```
 
-```sh
-$ curl http://localhost/rest/model
-{
-	"_count": 1,
-	"_items": [
-		{
-			"_id": "53cf0638a6d33ae82b00019d",
-			"_href": "http://localhost/rest/model/53cf0638a6d33ae82b00019d",
-			"field": "value",
-			"subDoc": {
-				"field": "value"
-			}
-		}
-	]
-}
+```
+$ curl http://localhost/rest/path/to/foo/bar
+Catchall handler
 ```
 
-Resources created this way are collections.  You can request individual
-documents with their `_id` field.  Note that the `_href` field is automatically
-generated on each request.
 
-```sh
-$ curl http://localhost/rest/model/53cf0638a6d33ae82b00019d
-{
-	"_id": "53cf0638a6d33ae82b00019d",
-	"_href": "http://localhost/rest/model/53cf0638a6d33ae82b00019d",
-	"field": "value",
-	"subDoc": {
-		"field": "subvalue"
-	}
-}
-```
+### Setting options
 
-More generally, `yarm.mongooseResource` enables requesting the whole document
-tree at any depth.
+You can set options on resources and sub-resources using their `.set()` method.  Options set this way are made available to method handlers in `req.options`. yarm allows two kinds of options:
 
-```sh
-$ curl http://localhost/rest/model/53cf0638a6d33ae82b00019d/field
-value
-$ curl http://localhost/rest/model/53cf0638a6d33ae82b00019d/subDoc
-{ "field": "subvalue" }
-$ curl http://localhost/rest/model/53cf0638a6d33ae82b00019d/subDoc/field
-subValue
-```
-
-Requests on the toplevel collection accept a `query` querystring parameter to
-filter returned documents.  The value of this parameter must be a set of
-`field:value` criteria separated by `AND` and `OR` operators.  Note that `AND`
-operators take precedence over `OR` operators.  `field:value` criteria match
-fields with the exact value passed, but you can also pass regular expressions.
-
-	?query=field1:value OR field2:/^foo/i AND subdoc.field:/^bar/
-
-You can invert criteria by replacing the colon with an exclamation mark.
-
-	?query=field!notThisValue AND field!/notThisRegex/
-
-There is currently no strict syntax checks on queries.  Malformed queries may
-make yarm throw exceptions.
-
-#### Resource types
-
-`yarm.mongooseResource` generates 4 kinds of resource definitions when dealing
-with mongoose Models.
-
-##### Model resources
-
-This is the toplevel resource defined to access the underlying mongodb
-Collection.  It supports GET requests as described above, but you can also add
-new documents to the collection with POST requests.  The default handler will
-call `Model#create` with the request body.  Note that you must use 
-`express.json()` or `express.bodyParser()` on your express app if you want to
-use POST, PUT or PATCH methods on mongoose resources, as those expect a JSON
-request body.
-
-Individual documents are accessible as subresources.
-
-##### Document resources
-
-This is the resource type defined to access individual collection documents and
-embedded documents.
-
-GET requests on document resources will return the JSON representation of the
-document, including a `_href` field with the full request URL.
-
-PUT and PATCH requests on document resources will attempt to update documents by
-calling `Document#update` with the request body.  There is currently no
-difference between the two methods, as PUT will not remove fields that are not
-present in the request body from the document.  Again, you must use 
-`express.json()` or `express.bodyParser()` on your express app if you want to
-use those, as they expect a JSON request body.
-
-DELETE requests on document resources will attempt to delete documents by
-calling `Document#remove`.
-
-##### DocumentArray resources
-
-This is the resource type defined when accessing mongoose DocumentArrays fields.
-DocumentArray resources are collections.
-
-GET requests on DocumentArray resources work a lot like those on the toplevel
-Model resource.  They support the `query` querystring parameter with the same
-syntax, but please note that filtering in this case is handled by yarm, not
-by mongoose queries.  The whole DocumentArray is always fetched, which can be an
-issue when dealing with large DocumentArrays.  You may want to use 
-[aggregates](#aggregate-resources) instead in this case.
-
-POST requests on DocumentArray resources will attempt to add a new subdocument 
-by pushing the request body on the DocumentArray and saving the owner document.
-Again, you must use  `express.json()` or `express.bodyParser()` on  your express
-app as POST expects a JSON request body.
-
-Individual subdocuments are made accessible as subresources.
-
-##### Document value resources
-
-This is the resource type defined when accessing document fields that are
-neither embedded documents nor DocumentArrays.
-
-GET requests on value resources return the raw value or a JSON representation
-when the value is an array.  You can use mongoose virtuals or toObject 
-transforms to send custom representations of values.
+* "Deep" options are set on the resource and all its sub-resources
 
 ```javascript
-Schema.virtual("custom").get(function() {
-	return new yarm.ResponseBody(this.field, "application/x-custom");
+resource("deep")
+  .get(function(req, cb) {
+    cb(null, "Option is: " + req.options["an option"])
+  })
+  .sub("subresource")
+    .get(function(req, cb) {
+      cb(null, "Option is: " + req.options["an option"])
+    });
+
+resource("deep").set("an option", "a value");
+```
+
+```
+$ curl http://localhost/rest/deep
+Option is: a value
+
+$ curl http://localhost/rest/deep/subresource
+Option is: a value
+```
+
+* "Strict" options are set only on the resource, and not passed to its sub-resources
+
+```javascript
+resource("strict")
+  .get(function(req, cb) {
+    cb(null, "Option is: " + req.options["an option"])
+  })
+  .sub("subresource")
+    .get(function(req, cb) {
+      cb(null, "Option is: " + req.options["an option"])
+    });
+
+resource("strict").set("an option", "a value", true);
+```
+
+```
+$ curl http://localhost/rest/strict
+Option is: a value
+
+$ curl http://localhost/rest/strict/subresource
+Option is: undefined
+```
+
+Setting options on sub-resource override those with the same name on parent resources.
+
+```javascript
+resource("option")
+  .get(function(req, cb) {
+    cb(null, "Option is: " + req.options["an option"])
+  })
+  .sub("subresource")
+    .get(function(req, cb) {
+      cb(null, "Option is: " + req.options["an option"])
+    });
+
+resource("option").set("an option", "a value");
+resource("option/subresource").set("an option", "an other value")
+```
+
+```
+$ curl http://localhost/rest/option
+Option is: a value
+
+$ curl http://localhost/rest/option/subresource
+Option is: an other value
+```
+
+
+### Hooks
+
+Hooks on yarm resources provides a way to add handlers that will be called before any method handler.  This enables altering the request object for use by the actual method handlers.
+
+```javascript
+yarm.resource("hooked")
+  .hook(function(req, next) {
+    req.hookCalled = true;
+    next();
+  })
+  .get(function(req, cb) {
+    cb(null, req.hookCalled ? "Hook has been called !" : "This does not work");
+  })
+  .post(function(req, cb) {
+    cb(req.hookCalled ? null : new Error("Hook has not been called !"));
+  });
+```
+
+```
+$ curl http://localhost/rest/hooked
+Hook has been called !
+
+$ curl -i -X POST http://localhost/rest/hooked
+HTTP/1.1 204 No content
+```
+
+All hooks on a resource are called in the order they were defined.  Every hook receives the Express request object and a `next` callback that must be called in order to allow other hooks, and finally the method handler, to process the request.  Hooks can also halt the handling of the request:
+
+* Passing an Error object to `next()` will make yarm send a "500 Internal server error" response with the error message as the request body
+* Calling `next.noContent()` will send a "204 No content" response
+* Calling `next.badRequest()` will send a "400 Bad request" response
+* Calling `next.notFound()` will send a "404 Not found" response
+* Calling `next.methodNotAllowed()` will send a "405 Method not allowed" response
+* Calling `next.notImplemented()` will send a "501 Not implemented" response
+* Calling `next.status(code[, body])` will send a custom HTTP status code and response body.
+
+Hooks also have access to URL wildcard values (in `req.params`) and resource options (in `req.options`).  yarm actually implements setting those objects using hooks.
+
+
+## Extending yarm
+
+You can add new resource definition helpers to yarm with `yarm.extend()`, and the built-in native and mongoose helpers are actually defined this way.  This is very useful when you use the same kind of resource customization on several resources.
+
+```javascript
+yarm.extend("onlyOneProperty", function(path, object, property) {
+  // Use this.sub(...) to define "root" resources
+  var resource = this.sub(path)
+    .get(function(req, cb) {
+      cb(null, object[property]);
+    });
+
+  // Remember to return the resource to enable method chaining
+  return resource;
 });
 
-yarm.mongooseResource("model", Model, {
-	toObject: {
-		transform: function(doc, ret, options) {
-			ret.image = new yarm.ResponseFile(doc.imagePath, "image/png");
-		}
-	}
-})
+yarm.onlyOneProperty("path/to/object", { "rest": "Hey !" }, "rest");
+
+app.use("/rest", yarm());
 ```
 
-PUT and PATCH requests on value resources will attempt to update the owner
-document by updating the field value and calling `Document#save`.  The request
-body should be a JSON object with a `_value` field containing the updated value.
-Again, note that you must use  `express.json()` or `express.bodyParser()` on
-your express app to enable parsing JSON request bodies.
-
-#### Options
-
-`yarm.mongooseResource` accepts an options object as its third parameter to
-customize its behaviour. The following options are available:
-
-##### `query`
-
-By default, `yarm.mongooseResource` queries mongoose collections by calling
-`Model#find()`.  You can override this by passing a function that returns a
-mongoose Query as the `query` option.  You may need this for example when
-subdocuments need populating, or when you want to filter available documents.
-
-```javascript
-yarm.resource("populated", Model, {
-	query: function() {
-		return Model.find().populate("subdoc");
-	}
-});
-
-yarm.resource("filtered", Model, {
-	query: function() {
-		return Model.find({ restAvailable: true });
-	}
-});
+```
+$ curl http://localhost/rest/path/to/object
+Hey !
 ```
 
-##### `sort`
 
-You can pass a mongoose/mongodb sort operator as the `sort` option.  Note that
-the same result can be achieved with the `query` option.
 
-```javascript
-yarm.resource("sorted", Model, {
-	sort: { field: "desc" }
-});
 
-// Equivalent
-yarm.resource("sorted", Model, {
-	query: function() {
-		return Model.find().sort({ field: "desc" });
-	}
-});
-```
-
-##### `toObject`
-
-`yarm.mongooseResource` calls the `toObject` method on mongoose documents before
-returning them.  You can tell it which `toObject` options to use (see mongoose
-documentation for the available options).
-
-```javascript
-yarm.resource("withVirtuals", Model, {
-	toObject: { virtuals: true }
-});
-```
-
-##### `overrides`
-
-You can override any method in resource definitions generated by
-`yarm.mongooseResource` by passing an object as the `override` option.  Keys in
-this object are resource path patterns, and values contain the resource
-definition methods to override.  Those methods are defined the same way as
-[usual resource methods](#defining-resources), except they receive an additional
-`chain` first argument.  This argument allows accessing the resource parent
-objects; it is an array that contains every intermediate mongoose object from
-the Model to the target resource (for example, when accessing a field in a
-member of a DocumentArray in a document, `chain` will contain the Model, the
-Document, the DocumentArray, the DocumentArray member, and finally the field
-value, in that order).
-
-You can also disable methods that would otherwise be available, by setting them
-to `undefined`.
-
-```javascript
-yarm.mongooseResource("model", Model, {
-	overrides: {
-		// Overrides for 'field' in a specific document
-		"model/53cf0638a6d33ae82b00019d/field": {
-			get: function(chain, req, cb) {
-				/*
-					`chain` is [
-						Model,
-						Document with _id 53cf0638a6d33ae82b00019d,
-						field value
-					]
-				*/
-
-				cb(null, "Field value is " + chain[chain.length - 1]);
-			},
-
-			put: undefined
-		}
-	}
-});
-```
-
-You can use a `$` character in path patterns to match any single path element.
-
-```javascript
-yarm.mongooseResource("model", Model, {
-	overrides: {
-		// Overrides for 'field' in all documents
-		"model/$/field": {
-			get: function(chain, req, cb) {
-				cb(null, "Field value is " + chain[chain.length - 1]);
-			}
-		}
-	}
-});
-```
-
-You can also use a `*` character to match one or more path elements.
-
-```javascript
-yarm.mongooseResource("nodelete", Model, {
-	overrides: {
-		// Disable DELETE everywhere
-		"*": {
-			del: undefined
-		},
-
-		// Disable GET on any "secret" field
-		"*/secret": {
-			get: undefined
-		}
-	}
-});
-```
-
-Note that even if path patterns take the full resource path in consideration
-(including the resource name), you will not be able to override paths to other
-yarm resources.
-
-```javascript
-yarm.mongooseResource("other", OtherModel);
-yarm.mongooseResource("name", Model, {
-	overrides: {
-		// Will never be applied
-		"other/*": { ... },
-
-		// '$' will always match "name"
-		"$/foo": { ... }
-	}
-});
-```
-
-However, matching the resource name enables you to reuse the same overrides
-object definition with multiple resources.
-
-```javascript
-var overrides = {
-	// Will only be applied on ModelA
-	"a/$/field": { ... },
-
-	// Will be applied to both ModelA and ModelB
-	"$/$/secret": {
-		get: undefined
-	}
-};
-
-yarm.mongooseResource("a", ModelA, { overrides: overrides });
-yarm.mongooseResource("b", ModelB, { overrides: overrides });
-```
-
-##### `key`
-
-By default, `yarm.mongooseResource` uses the `_id` field to identifty individual
-documents in the collection.  You may want to avoid ObjectIDs in your REST URLs,
-in which case you can pass an alternate field name to use as the `key` option.
-
-```javascript
-yarm.resource("model", Model, {
-	key: "name"
-});
-```
-
-```sh
-$ curl http://localhost/rest/model
-{
-	"_count": 1,
-	"_items": [
-		{
-			"_id": "53cf0638a6d33ae82b00019d",
-			"_href": "http://localhost/rest/model/foo",
-			"name": "foo",
-			"field": "value"
-		}
-	]
-}
-$ curl http://localhost/rest/model/foo
-{
-	"_id": "53cf0638a6d33ae82b00019d",
-	"_href": "http://localhost/rest/model/foo",
-	"name": "foo",
-	"field": "value"
-}
-```
-
-Note that when using the `key` option that way, the `_id` field will still be
-used to access resources in DocumentArrays.  You can change that by using path
-patterns (see the [`overrides`](#overrides) option above for path pattern
-syntax details).
-
-```javascript
-yarm.mongooseResource("model", Model, {
-	key: {
-		"model": "name",
-		"model/$/subDocArray": "title"
-	}
-})
-```
-
-##### `request`
-
-By default, yarm adds a `_request` property with the current Express Request
-object on all documents it handles.  This property can be used in virtual
-getters or document methods for example.
-
-```javascript
-MySchema.virtual("clientHost").get(function() {
-	return this._request ? this._request.headers.host : null;
-});
-```
-
-The `request` option can be used to disable this property (when setting it to
-`false`) or change its name.
-
-#### Aggregate resources
-
-`yarm.mongooseResource.aggregate` can be used to define resource from aggregate
-pipelines on a model.  Aggregate resources are inherently more limited as they
-are read only, but in a read-only scenario they can be really flexible as you
-can `$project` documents at will.
-
-```javascript
-yarm.mongooseResource.aggregate("aggregate", Model, [
-	{ $project : {
-		author : 1,
-		tags : 1,
-	} },
-	{ $unwind : "$tags" },
-	{ $group : {
-		_id : "$tags",
-		authors : { $addToSet : "$author" }
-	} }
-])
-```
-
-Aggregate resources are collections.  GET requests on aggregate resources
-support a `?query=` parameter as for other collections, which is handled
-directly in the aggregation pipeline (as well as `offset` and `limit`).
-
-You can access aggregated documents as subresources by their `_id` field. There
-is no way to change this behaviour as you can already use the `$project` and
-`$group` aggregation operators to customize the `_id` value.
-
-Only GET/HEAD requests are supported on aggregated documents.
-
-You may also define custom subresources on aggregated documents by passing an
-object with a `subResources` key as the fourth parameter to
-`yarm.mongooseResource.aggregate`.
-
-```javascript
-yarm.mongooseResource.aggregate(
-	"aggregate",
-	Model,
-	[ pipeline ],
-	{
-		subResources: {
-			// Define a resource at /rest/aggregate/<id>/foo
-			"foo": function(adoc) {
-				return {
-					get: function(req, cb) {
-						// GET handling
-					},
-
-					...
-				}
-			}
-		}
-	}
-);
-```
-
-The `subResources` option is an object which keys are subresource names and
-values are functions that receive the parent aggregated object and must return
-a yarm resource definition.  Aggregated documents themselves are read-only, but
-here is no limitation as to which methods you can define on subresources.
-
-Miscellaneous
--------------
-
-### Removing resources
-
-You can remove previously defined resources by calling
-`yarm.resource.remove("name");`.
-
-### Calling callbacks
-
-You may want to use `process.nextTick()` instead of calling the resource method
-callbacks directly.  This is mainly useful to avoid exceeding the call stack
-limit when dealing deeply nested subresources.  One disadvantage is that it adds
-an additional level of callback nesting in your code.
-
-```javascript
-yarm.resource("nextTick", {
-	get: function(req, cb) {
-		process.nextTick(function() {
-			cb(null, { hello: "world" });
-		});
-	}
-});
-```
+[mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject
