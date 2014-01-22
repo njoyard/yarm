@@ -12,7 +12,7 @@ var assert = require("assert"),
 
 function resource(name, value) {
 	yarm.remove(name);
-	yarm.native(name, value);
+	return yarm.native(name, value);
 }
 
 
@@ -96,6 +96,25 @@ describe("Native resources", function() {
 			});
 		});
 
+		it("Should GET objects as collections when objectCollections is true", function(done) {
+			resource("test", {
+					number: 42,
+					string: "foo",
+					bool: true,
+					arr: [1, 2, 3]
+				})
+				.set("objectCollections", true);
+
+			request.get("/test?skip=1&limit=2", function(res, body) {
+				var data = assertJSON(body);
+
+				assert.strictEqual(data._count, 4);
+				assert.strictEqual(data._items.join(","), "string,bool");
+
+				done();
+			});
+		});
+
 		it("Should GET array resources", function(done) {
 			resource("test", ["foo", "bar", "baz"]);
 
@@ -104,6 +123,20 @@ describe("Native resources", function() {
 
 				assert.strictEqual(Array.isArray(data), true);
 				assert.strictEqual(data.join(","), "foo,bar,baz");
+
+				done();
+			});
+		});
+
+		it("Should GET arrays as collections when arrayCollections is true", function(done) {
+			resource("test", ["foo", "bar", "baz"])
+				.set("arrayCollections", true);
+
+			request.get("/test?skip=1&limit=1", function(res, body) {
+				var data = assertJSON(body);
+
+				assert.strictEqual(data._count, 3);
+				assert.strictEqual(data._items.join(","), "bar");
 
 				done();
 			});
