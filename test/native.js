@@ -328,6 +328,21 @@ describe("Native resources", function() {
 
 				request.del("/test/0", function(res, body) {
 					assert.strictEqual(res.statusCode, 204);
+					assert.strictEqual(obj.length, 1);
+					assert.strictEqual(obj[0], "foo");
+
+					done();
+				});
+			});
+
+			it("Should DELETE array items leaving a hole when sparseArrays is true", function(done) {
+				var obj = [42, "foo"];
+
+				resource("test", obj).set("sparseArrays", true);
+
+				request.del("/test/0", function(res, body) {
+					assert.strictEqual(res.statusCode, 204);
+					assert.strictEqual(obj.length, 2);
 					assert.strictEqual(typeof obj[0], "undefined");
 
 					done();
