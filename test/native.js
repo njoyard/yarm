@@ -28,7 +28,7 @@ function assertJSON(json) {
 }
 
 
-function allTypes(description, doRequest, checkResponse, noCollections) {
+function allTypes(description, doRequest, checkResponse, options) {
 	var types = {
 		"string": { value: "foo" },
 		"number": { value: 42 },
@@ -36,6 +36,8 @@ function allTypes(description, doRequest, checkResponse, noCollections) {
 		"array": { value: ["foo", "bar", "baz"] },
 		"object": { value: { foo: "bar" } }
 	};
+
+	options = options || {};
 
 	function objectValues(obj) {
 		return Object.keys(obj).map(function(k) { return obj[k]; });
@@ -54,20 +56,19 @@ function allTypes(description, doRequest, checkResponse, noCollections) {
 				var actualValue = checkResponse(expectedValue, res, body);
 
 				if (type === "array") {
-					if (noCollections) {
+					if (options.rawArrays) {
 						assert(Array.isArray(actualValue));
 						assert.strictEqual(actualValue.join(","), expectedValue.join(","));
 					} else {
 						assert.strictEqual(typeof actualValue, "object");
 
-						console.dir(actualValue);
 						assert.strictEqual(actualValue._count, expectedValue.length);
 
 						assert(Array.isArray(actualValue._items));
 						assert.strictEqual(actualValue._items.join(","), expectedValue.join(","));
 					}
 				} else if (type === "object") {
-					if (noCollections) {
+					if (!options.objectCollections) {
 						assert.strictEqual(typeof actualValue, "object");
 						assert.strictEqual(Object.keys(actualValue).join(","), Object.keys(expectedValue).join(","));
 						assert.strictEqual(objectValues(actualValue).join(","), objectValues(expectedValue).join(","));
@@ -93,31 +94,13 @@ function allTypes(description, doRequest, checkResponse, noCollections) {
 
 describe("Native resources", function() {
 	describe("Root resources", function() {
-		it("Should GET objects as collections", function(done) {
+		it("Should GET object resources", function(done) {
 			resource("test", {
 				number: 42,
 				string: "foo",
 				bool: true,
 				arr: [1, 2, 3]
-			});
-
-			request.get("/test?skip=1&limit=2", function(res, body) {
-				var data = assertJSON(body);
-
-				assert.strictEqual(data._count, 4);
-				assert.strictEqual(data._items.join(","), "string,bool");
-
-				done();
-			});
-		});
-
-		it("Should GET object resources as is when rawObjects is true", function(done) {
-			resource("test", {
-				number: 42,
-				string: "foo",
-				bool: true,
-				arr: [1, 2, 3]
-			}).set("rawObjects", true);
+			})
 
 			request.get("/test", function(res, body) {
 				var data = assertJSON(body);
@@ -128,6 +111,24 @@ describe("Native resources", function() {
 				assert.strictEqual(data.bool, true);
 				assert.strictEqual(Array.isArray(data.arr), true);
 				assert.strictEqual(data.arr.join(","), "1,2,3");
+
+				done();
+			});
+		});
+
+		it("Should GET objects as collections when objectCollections is true", function(done) {
+			resource("test", {
+				number: 42,
+				string: "foo",
+				bool: true,
+				arr: [1, 2, 3]
+			}).set("objectCollections", true);
+
+			request.get("/test?skip=1&limit=2", function(res, body) {
+				var data = assertJSON(body);
+
+				assert.strictEqual(data._count, 4);
+				assert.strictEqual(data._items.join(","), "string,bool");
 
 				done();
 			});
@@ -247,7 +248,7 @@ describe("Native resources", function() {
 			}, function(expected, res, body) {
 				assert.strictEqual(res.statusCode, 204);
 				return obj.property;
-			}, true);
+			}, { rawArrays: true });
 			
 			var arr = [ "foo", "bar", "baz" ];
 
@@ -257,7 +258,7 @@ describe("Native resources", function() {
 			}, function(expected, res, body) {
 				assert.strictEqual(res.statusCode, 204);
 				return arr[1];
-			}, true);
+			}, { rawArrays: true });
 		});
 
 		describe("PATCH", function() {
