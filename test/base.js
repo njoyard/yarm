@@ -92,34 +92,3 @@ describe("Collection resources", function() {
 		});
 	});
 });
-
-describe("Hybrid resources", function() {
-	describe("GET", function() {
-		it("should prefer .get callback over .list and .count callbacks", function(done) {
-			var called = [];
-
-			resource("test")
-				.get(function(req, cb) {
-					called.push("get");
-					cb(null, "foo");
-				})
-
-				.count(function(req, cb) {
-					called.push("count");
-					cb(null, 42);
-				})
-
-				.list(function(req, offset, limit, cb) {
-					called.push("list");
-					cb(null, ["bar"]);
-				});
-
-			request.get("/test", function(res, body) {
-				assert.deepEqual(["get"], called);
-				assert.strictEqual("foo", body);
-
-				done();
-			});
-		});
-	});
-});
