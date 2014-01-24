@@ -88,7 +88,7 @@ function mongooseResource(name, model) {
 
 function aggregateResource(name, model, pipeline, options) {
 	yarm.remove(name);
-	return yarm.mongooseAggregate(name, model, pipeline, options);
+	return yarm.aggregate(name, model, pipeline, options);
 }
 
 
