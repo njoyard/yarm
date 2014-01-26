@@ -128,6 +128,19 @@ describe("Sub-resources", function() {
 		});
 	});
 
+	it("Should not URL-decode values matched by catchall wildcard", function(done) {
+		var r = resource("test");
+
+		r.sub("foo/*").get(function(req, cb) {
+			cb(null, req.params["*"]);
+		});
+
+		request.get("/test/foo/url%20encoded/baz/with%2Fslash", function(res, body) {
+			assert.strictEqual("url%20encoded/baz/with%2Fslash", body);
+			done();
+		});
+	});
+
 	it("Should override previously defined handlers for sub-resources", function(done) {
 		var r = resource("test");
 
