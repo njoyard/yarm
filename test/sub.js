@@ -115,6 +115,19 @@ describe("Sub-resources", function() {
 		});
 	});
 
+	it("Should URL-decode values matched by wildcards", function(done) {
+		var r = resource("test");
+
+		r.sub("foo/:bar/baz").get(function(req, cb) {
+			cb(null, req.params.bar);
+		});
+
+		request.get("/test/foo/url%20encoded%2Fvalue/baz", function(res, body) {
+			assert.strictEqual("url encoded/value", body);
+			done();
+		});
+	});
+
 	it("Should override previously defined handlers for sub-resources", function(done) {
 		var r = resource("test");
 
