@@ -1,0 +1,102 @@
+@import url(http://fonts.googleapis.com/css?family=Lato:300,700);
+@import url(http://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+/* General styles */
+
+body {
+	font-family: Lato, sans-serif;
+	margin: 0 10em;
+}
+
+h1 {
+	margin-top: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-weight: bold;
+	color: #666;
+}
+
+a {
+	color: #666;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #28d;
+	text-decoration: underline;
+}
+
+/* Header */
+
+#header {
+	color: #666;
+	padding: 0 0 2em .5em;
+}
+
+#header .title {
+	font-size: 3em;
+}
+
+#header .subtitle {
+	font-style: italic;
+	font-size: .8em;
+}
+
+/* Documentation */
+
+#toc {
+	width: 15em;
+	position: relative;
+	top: 0;
+	float: left;
+}
+
+#toc.sticky {
+	position: fixed;
+}
+
+#content {
+	padding-left: 16em;
+}
+
+#toc ul {
+	list-style: none;
+	margin: 0;
+	padding-left: 1em;
+}
+
+#toc ul.level0 {
+	padding-left: 0;
+}
+
+#toc ul.level0 > li > a {
+	font-weight:  bold;
+}
+
+#toc ul.level0 > li {
+	padding-left: .5em;
+	border-left: 2px solid transparent;
+}
+
+#toc ul.level0 > li.active {
+	border-left: 2px solid #28d;
+}
+
+#toc ul.level2 {
+	display: none;
+}
+
+/* Code blocks */
+
+code {
+	font-family: "Ubuntu Mono", monospace;
+}
+
+.highlight {
+	background-color: #f0f4f8;
+	border-radius: 1em;
+	padding: .25em 1em;
+	margin: 2em;
+	box-shadow: .25em .25em .25em #ddd;
+}

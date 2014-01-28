@@ -1,0 +1,4 @@
+pygments: true
+markdown: rdiscount
+exlude: [build.js]
+url: http://yarm.njoyard.fr

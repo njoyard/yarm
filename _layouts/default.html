@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>{{ page.title }}</title>
+		<link rel="stylesheet" type="text/css" href="yarm.css">
+		<link rel="stylesheet" type="text/css" href="github.css">
+	</head>
+	<body>
+		<div id="header">
+			<div class="title">yarm</div>
+			<div class="subtitle">Yet another REST middleware for nodejs, express and mongoose</div>
+		</div>
+		<div id="toc">
+			<ul class="level0">
+				<li class="{% if page.id == 'about' %}active{% endif %}"><a href="index.html">About</a></li>
+				<li><a href="https://github.com/njoyard/yarm">GitHub</a></li>	
+				<li><a href="http://twitter.com/njoyard">@njoyard</a></li>	
+			</ul>
+			<br>
+			{% include doc-toc.html %}
+		</div>
+		<div id="content">
+			{{ content }}
+		</div>
+		<script>
+			window.onscroll = function() {
+				var header = document.getElementById("header");
+				var toc = document.getElementById("toc");
+				var headerTop = header.offsetTop + header.offsetHeight;
+
+				if (window.scrollY > headerTop) {
+					toc.classList.add("sticky");
+				} else {
+					toc.classList.remove("sticky");
+				}
+			}
+		</script>
+	</body>
+</html>
