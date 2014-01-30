@@ -7,11 +7,34 @@ var fs = require("fs");
 var spawn = require("child_process").spawn;
 
 
-var README_FILE = "README.md";
-var README_BRANCH = "devel";
+var BRANCH = "devel";
 var TOC_HEADER = "Table of contents";
 var TOC_DEPTH = 3;
 var DOC_PREFIX = "doc-";
+
+
+function gitFetch(file, cb) {
+	var content = "";
+	var git = spawn("git", ["show", BRANCH + ":" + file]);
+
+	git.stdout.on("data", function(chunk) {
+		content += chunk.toString();
+	});
+
+	git.stdout.on("end", function() {
+		cb(content);
+	});
+}
+
+var fetchJobs = {
+	"doc": gitFetch.bind(null, "USAGE.md"),
+	"changelog": gitFetch.bind(null, "CHANGELOG"),
+	"version": function(cb) {
+		gitFetch("package.json", function(json) {
+			cb(JSON.parse(json).version);
+		});
+	}
+};
 
 
 // Split markdown data recursively at headers from level to maxLevel
@@ -95,21 +118,15 @@ function sectionName(header) {
 }
 
 
-// Checkout README from master branch
-var readme = "";
-var git = spawn("git", ["show", README_BRANCH + ":" + README_FILE]);
+function generate(data) {
+	var doc = data.doc;
 
-git.stdout.on("data", function(chunk) {
-	readme += chunk.toString();
-});
-
-git.stdout.on("end", function() {
 	// Extract and remove link references
-	var links = readme.match(/^(\[.*\]: .*)$/gm);
-	readme = readme.replace(/^\[.*\]: .*$/gm, "");
+	var links = doc.match(/^(\[.*\]: .*)$/gm);
+	doc = doc.replace(/^\[.*\]: .*$/gm, "");
 
 	// Split at headers to get a section tree
-	var sections = splitSections(2, 6, readme);
+	var sections = splitSections(2, 6, doc);
 
 	// Remove TOC and anything before first header
 	delete sections._;
@@ -118,6 +135,12 @@ git.stdout.on("end", function() {
 	// Generate TOC and section links
 	var slinks = {};
 	fs.writeFileSync(__dirname + "/_includes/" + DOC_PREFIX + "toc.html", getTOC(sections, slinks, 0).replace(/\n+/g, "\n"));
+
+	// Write version file
+	fs.writeFileSync(__dirname + "/_includes/version", data.version);
+
+	// Write date file
+	fs.writeFileSync(__dirname + "/_includes/gendate", new Date());
 
 	// Write section files
 	Object.keys(sections).forEach(function(header) {
@@ -142,6 +165,10 @@ git.stdout.on("end", function() {
 				return "[" + caption + "](" + slinks[href] + ")";
 			});
 
+		markdown += "\n\n<div class=\"footer\">" +
+			"documentation last generated for yarm version {% include version %} on {% include gendate %}" +
+			"</div>";
+
 		fs.writeFileSync(__dirname + "/" + DOC_PREFIX + sectionName(header) + ".markdown",
 			"---\n" +
 			"layout: default\n" +
@@ -153,4 +180,24 @@ git.stdout.on("end", function() {
 			links.join("\n")
 		);
 	});
-});
+}
+
+
+function run() {
+	// Run fetch jobs
+	var fetched = {};
+
+	Object.keys(fetchJobs).forEach(function(key) {
+		fetchJobs[key](function(data) {
+			fetched[key] = data;
+
+			if (Object.keys(fetchJobs).length === Object.keys(fetched).length) {
+				// Done
+				generate(fetched);
+			}
+		});
+	});
+}
+
+
+run();
