@@ -213,4 +213,6 @@ Head on to the [Extending resources](doc-extending-resources.html) chapter for m
 
 
 
+<div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>
+
 [mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject

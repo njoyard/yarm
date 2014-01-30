@@ -406,4 +406,6 @@ When your schema contains a document array, clients can add new sub-documents by
 
 
 
+<div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>
+
 [mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject

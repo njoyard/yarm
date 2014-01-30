@@ -111,20 +111,28 @@ There are several ways of defining handlers on a sub-resource.  You can pass the
 
 {% highlight javascript %}
 yarm.resource("path/to/resource")
-  .get(function(req, cb) { cb(null, "Hey !"); });
+  .get(function(req, cb) {
+    cb(null, "Hey !");
+  });
 
 yarm.resource("path/to")
   .sub("resource")
-    .get(function(req, cb) { cb(null, "Hey !"); });
+    .get(function(req, cb) {
+      cb(null, "Hey !");
+    });
 
 yarm.resource("path")
   .sub("to/resource")
-    .get(function(req, cb) { cb(null, "Hey !"); });
+    .get(function(req, cb) {
+      cb(null, "Hey !");
+    });
 
 yarm.resource("path")
   .sub("to")
     .sub("resource")
-      .get(function(req, cb) { cb(null, "Hey !"); });
+      .get(function(req, cb) {
+        cb(null, "Hey !");
+      });
 {% endhighlight %}
 
 yarm examines all defined handlers for the requested URL before choosing the last one.  To define (or override) a handler on a resource, you can either chain calls from the original resource definition, or restart from scratch with a new `yarm.resource()` call.
@@ -190,19 +198,58 @@ URL parts matched with wildcards are made available in `req.params` for all hand
 
 {% highlight javascript %}
 yarm.resource("post/:pid")
-  .get(function(req, cb) { cb(null, "Post " + req.params.pid); })
+  .get(function(req, cb) {
+    cb(null, "Post " + req.params.pid);
+  })
   .sub("comments/:cid")
-    .get(function(req, cb) { cb(null, "Comment #" + req.params.cid + " from post " + req.params.pid); });
+    .get(function(req, cb) {
+      cb(null, "Comment #" + req.params.cid + " from post " + req.params.pid);
+    });
 {% endhighlight %}
+
+Parameter values are URL-decoded, except for the part matched by the "*" catchall wildcard (it's up to handlers to split its value into path components and URL-decode them).
+
+{% highlight javascript %}
+yarm.resource("wildcard/:param")
+  .get(function(req, cb) {
+    cb(null, "Parameter: " + req.params.param):
+  });
+
+yarm.resource("catchall/*")
+  .get(function(req, cb) {
+    cb(null, "URL ends with: " + req.params["*"]);
+  });
+{% endhighlight %}
+
+<div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/wildcard/url%20encoded</span>
+Parameter: url encoded
+
+<span class="p">$ curl http://localhost/rest/catchall/url%2Fencoded/value</span>
+URL ends with: url%2Fencoded/value
+</code></pre></div>
 
 As stated before, yarm will always choose the last defined handler amongst all resource definitions matching the requested URL.  As a consequence, specific handlers (that is, handlers on paths without wildcards) should always be defined last or they will always be overriden by generic handlers (those with wildcards).
 
 {% highlight javascript %}
-yarm.resource("a/:param").get(function(req, cb) { cb(null, "A: Generic handler"); });
-yarm.resource("a/value").get(function(req, cb) { cb(null, "A: Specific handler"); });
+yarm.resource("a/:param")
+  .get(function(req, cb) {
+    cb(null, "A: Generic handler");
+  });
 
-yarm.resource("b/value").get(function(req, cb) { cb(null, "B: Specific handler"); });
-yarm.resource("b/:param").get(function(req, cb) { cb(null, "B: Generic handler"); });
+yarm.resource("a/value")
+  .get(function(req, cb) {
+    cb(null, "A: Specific handler");
+  });
+
+yarm.resource("b/value")
+  .get(function(req, cb) {
+    cb(null, "B: Specific handler");
+  });
+
+yarm.resource("b/:param")
+  .get(function(req, cb) {
+    cb(null, "B: Generic handler");
+  });
 {% endhighlight %}
 
 <div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/a/foo</span>
@@ -222,9 +269,13 @@ As the "*" catchall wildcard matches everything until the end of the URL, callin
 
 {% highlight javascript %}
 yarm.resource("path/to/*")
-  .get(function(req, cb) { cb(null, "Catchall handler"); })
+  .get(function(req, cb) {
+    cb(null, "Catchall handler");
+  })
   .sub("bar")
-    .get(function(req, cb) { cb(null, "Forever alone..."); });
+    .get(function(req, cb) {
+      cb(null, "Forever alone...");
+    });
 {% endhighlight %}
 
 <div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/path/to/foo/bar</span>
@@ -284,7 +335,7 @@ Option is: undefined
 Setting options on sub-resource override those with the same name on parent resources.
 
 {% highlight javascript %}
-resource("option")
+yarm.resource("option")
   .get(function(req, cb) {
     cb(null, "Option is: " + req.options["an option"])
   })
@@ -293,8 +344,11 @@ resource("option")
       cb(null, "Option is: " + req.options["an option"])
     });
 
-resource("option").set("an option", "a value");
-resource("option/subresource").set("an option", "an other value")
+yarm.resource("option")
+  .set("an option", "a value");
+
+yarm.resource("option/subresource")
+  .set("an option", "an other value")
 {% endhighlight %}
 
 <div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/option</span>
@@ -331,7 +385,7 @@ Hook has been called !
 HTTP/1.1 204 No content
 </code></pre></div>
 
-All hooks on a resource are called in the order they were defined.  Every hook receives the Express request object and a `next` callback that must be called in order to allow other hooks, and finally the method handler, to process the request.  Hooks can also halt the handling of the request:
+Every hook receives the Express request object and a `next` callback that must be called in order to allow yarm to continue processing the request.  Hooks can also halt the handling of the request:
 
 * Passing an Error object to `next()` will make yarm send a "500 Internal server error" response with the error message as the request body
 * Calling `next.noContent()` will send a "204 No content" response
@@ -343,6 +397,160 @@ All hooks on a resource are called in the order they were defined.  Every hook r
 
 Hooks also have access to URL wildcard values (in `req.params`) and resource options (in `req.options`).  yarm actually implements setting those objects using hooks.
 
+Hooks are different from method handlers, in that all hooks defined on a resource path will be called when the resource is requested, including those defined on parent paths.  On a given path, hooks are called in the order they were defined.
 
+For example, given the following resource definition:
+
+{% highlight javascript %}
+yarm.resource("hooks")
+  .hook(rootHook1)
+  .hook(rootHook2)
+  .get(rootGet)
+  .sub("subresource")
+    .hook(subHook1)
+    .hook(subHook2)
+    .get(subGet);
+{% endhighlight %}
+
+a GET request on "hooks" will call `rootHook1`, `rootHook2`, and then `rootGet`.  A GET request on "hooks/subresource" will call `rootHook1`, `rootHook2`, `subHook1`, `subHook2` and finally `subGet`.
+
+This scheme is very useful when working with nested resources, as hooks on a given level can prepare objects for the next level to work with, storing them in the request object.  For example, you could define a tree of resources to access a database with something like this:
+
+{% highlight javascript %}
+yarm.resource("db/:database")
+  .hook(function(req, next) {
+    // Connect to DB and store connection in the request object
+    dbDriver.connect(req.params.database, function(err, connection) {
+      if (err) {
+        next(err);
+      } else {
+        req.connection = connection;
+        next();
+      }
+    });
+  })
+  .get(function(req, cb) {
+    cb(null, req.connection.getDatabaseInfo());
+  })
+  .post(function(req, cb) {
+    req.connection.createTable(req.body.tableName, function(err) {
+      cb(err);
+    });
+  });
+
+yarm.resource("db/:database/tables/:table")
+  .hook(function(req, next) {
+    // Get a handle on the table an store it in the request object
+    req.connection.getTable(req.params.table, function(err, table) {
+      if (err) {
+        next(err);
+      } else {
+        req.table = table;
+        next();
+      }
+    });
+  })
+  .get(function(req, cb) {
+    cb(null, req.table.getTableInfo());
+  })
+  .del(function(req, cb) {
+    req.connection.removeTable(req.table.getTableName(), function(err) {
+      cb(err);
+    });
+  })
+  .post(function(req, cb) {
+    req.table.addRow(req.body, function(err) {
+      cb(err);
+    });
+  });
+
+yarm.resource("db/:database/tables/:table/rows/:rowid")
+  .hook(function(req, next) {
+    // Get the row and store it in the request object
+    req.table.fetchRow(req.params.rowid, function(err, next) {
+      if (err) {
+        next.notFound();
+      } else {
+        req.row = row;
+        next();
+      }
+    });
+  })
+  .get(function(req, cb) {
+    cb(null, req.row.getJSONData());
+  })
+  .put(function(req, isPatch, cb) {
+    (isPatch ? req.row.update : req.row.replace)(req.body, function(err) {
+      cb(err);
+    });
+  })
+  .del(function(req, cb) {
+    req.table.deleteRow(row.getRowID(), function(err) {
+      cb(err);
+    });
+  });
+{% endhighlight %}
+
+
+<a name="helpers"></a>
+## Helpers
+
+yarm adds the following helpers to the Express request object, that are available both in hooks and in method handlers:
+
+* `req.getHref([path])` returns the URL of the requested resource, optionnaly adding `path` to the end.
+
+{% highlight javascript %}
+yarm.resource("path/to/resource")
+  .get(function(req, cb) {
+    cb(null, {
+      withoutPath: req.getHref(),
+      withPath: req.getHref("sub/resource")
+    });
+  });
+{% endhighlight %}
+
+<div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/path/to/resource</span>
+{
+  "withoutPath": "http://localhost/rest/path/to/resource",
+  "withPath": "http://localhost/rest/path/to/resource/sub/resource"
+}
+</code></pre></div>
+
+* `req.match(pattern, path)` matches `path` to `pattern` and returns the match.  `pattern` should be a path pattern with optional parameter or catchall wildcards.  When `path` matches, it returns an object with all matched wildcard values, or `false` otherwise. 
+
+{% highlight javascript %}
+yarm.resource("path/to/resource")
+  .get(function(req, cb) {
+    cb(null, {
+      wildcards: {
+        param: req.match("foo/:p1/baz/:p2", "foo/bar/baz/42"),
+        wildcard: req.match("foo/:p1/baz/*", "foo/bar/baz/42/bing"),
+        noMatch: req.match("foo/:p1/baz/*", "path/to/resource")
+      },
+      noWildcards: {
+        match: req.match("path/to/resource", "path/to/resource"),
+        noMatch: req.match("path/to/resource", "foo/bar")
+      }
+    });
+  });
+{% endhighlight %}
+
+<div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/path/to/resource</span>
+{
+  "wildcards": {
+    "param": { "p1": "bar", "p2": "42" },
+    "catchall": { "p1": "bar", "*": "42/bing" },
+    "noMatch": false
+  },
+  "noWildcards": {
+    "match": {},
+    "noMatch": false
+  }
+}
+</code></pre></div>
+
+
+
+<div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>
 
 [mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject

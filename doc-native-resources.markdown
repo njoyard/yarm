@@ -215,7 +215,8 @@ The following options are supported by native resources:
 * `rawArrays` (default `false`): when `true`, serve arrays as is instead of collections.  The whole array content will be returned to clients, instead of an object with `_count` and `_items` keys.  Note that clients cannot use `skip` or `limit` request parameters on raw arrays.
 
 {% highlight javascript %}
-yarm.native("array", [1, 2, 3]).set("rawArrays", true);
+yarm.native("array", [1, 2, 3])
+  .set("rawArrays", true);
 {% endhighlight %}
 
 <div class="highlight"><pre><code><span class="p">$ curl http://localhost/rest/array</span>
@@ -250,7 +251,8 @@ baz
 * `sparseArrays` (default `false`): when `true`, DELETE requests on array items will leave an `undefined` hole in the array instead of splicing the array.
 
 {% highlight javascript %}
-yarm.native("array", [1, 2, 3]).set("sparseArrays", true);
+yarm.native("array", [1, 2, 3])
+  .set("sparseArrays", true);
 {% endhighlight %}
 
 <div class="highlight"><pre><code><span class="p">$ curl -X DELETE http://localhost/rest/array/1</span>
@@ -262,5 +264,7 @@ yarm.native("array", [1, 2, 3]).set("sparseArrays", true);
 </code></pre></div>
 
 
+
+<div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>
 
 [mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject

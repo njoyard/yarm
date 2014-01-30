@@ -1,0 +1,31 @@
+**version 0.3.1** *released on 2014-01-30*
+
+* Fixed mongoose helper directly passing yarm callback to mongoose
+* URL-decode wildcard-matched parameters (except for "*")
+
+**version 0.3.0** *released on 2014-01-24*
+
+* Full rewrite and API change
+
+**version 0.2.0** *released on 2013-08-11*
+
+* Added 'key' option to mongoose resources
+* Added mongoose aggregate support
+* Added custom queries to DocumentArrays
+
+**version 0.1.1** *released on 2013-08-03*
+
+* Improved mongoose resource handling
+* Fixed bugs with .get/.list precedence
+* Added custom queries to mongoose collections
+* Rewrote native resources implementation
+* Added new tests
+
+**version 0.0.6** *released on 2013-08-02*
+
+* Fixed a bug with readable streams
+* Added tests
+
+**version 0.0.5** *released on 2013-08-01*
+
+* Initial release

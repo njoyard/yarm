@@ -28,4 +28,6 @@ app.use("/rest", yarm());
 Hey !
 </code></pre></div>
 
+<div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>
+
 [mongoose-toobject]: http://mongoosejs.com/docs/api.html#document_Document-toObject
