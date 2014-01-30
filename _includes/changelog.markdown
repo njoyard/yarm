@@ -1,4 +1,4 @@
-**version 0.3.1** *released on 2014-01-30*
+**version 0.3.2** *released on 2014-01-30*
 
 * Fixed mongoose helper directly passing yarm callback to mongoose
 * URL-decode wildcard-matched parameters (except for "*")
