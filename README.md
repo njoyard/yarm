@@ -3,7 +3,7 @@ yarm
 
 *Yet Another REST Middleware for node.js, Express and mongoose.*
 
-Master branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=master)][travis]
+Master branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=master)](https://travis-ci.org/njoyard/yarm)
 
 Development branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=devel)](https://travis-ci.org/njoyard/yarm)
 
@@ -236,7 +236,6 @@ Head on to the documentation on [Extending resources][doc-extend] for more detai
 yarm is published under the terms of the MIT license.  Feel free to report bugs or send pull requests.
 
 
-[travis]: https://travis-ci.org/njoyard/yarm
 [doc]: http://yarm.njoyard.fr
 [doc-native]: http://yarm.njoyard.fr/doc-native-resources.html
 [doc-mongoose]: http://yarm.njoyard.fr/doc-mongoose-resources.html
