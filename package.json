@@ -1,18 +1,16 @@
 {
   "name": "yarm",
   "version": "0.3.0",
-  "description": "Yet Another REST Module for node.js and Express",
-  "main": "index.js",
-  "scripts": {
-    "test": "node_modules/.bin/mocha"
-  },
+  "description": "Yet Another REST Middleware for express and mongoose",
+  "homepage": "http://yarm.njoyard.fr",
   "repository": {
     "type": "git",
     "url": "git://github.com/njoyard/yarm.git"
   },
   "keywords": [
-    "REST",
-    "Express",
+    "rest",
+    "restful",
+    "express",
     "mongoose"
   ],
   "author": "Nicolas Joyard <joyard.nicolas@gmail.com>",
@@ -20,10 +18,14 @@
   "bugs": {
     "url": "https://github.com/njoyard/yarm/issues"
   },
+  "main": "index.js",
   "devDependencies": {
     "mocha": "*",
     "express": "*",
     "mongoose": "*",
     "mongodb": "*"
+  },
+  "scripts": {
+    "test": "node_modules/.bin/mocha"
   }
 }
