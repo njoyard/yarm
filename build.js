@@ -7,7 +7,7 @@ var fs = require("fs");
 var spawn = require("child_process").spawn;
 
 
-var BRANCH = "devel";
+var BRANCH = "master";
 var TOC_HEADER = "Table of contents";
 var TOC_DEPTH = 3;
 var DOC_PREFIX = "doc-";
@@ -141,6 +141,13 @@ function generate(data) {
 
 	// Write date file
 	fs.writeFileSync(__dirname + "/_includes/gendate", new Date());
+
+	// Write changelog
+	fs.writeFileSync(__dirname + "/_includes/changelog.markdown",
+		data.changelog.replace(/^(NEXT|version [0-9.]+)(?: - ([0-9-]+))?$/gm, function(m, section, date) {
+			return "**" + section + "**" + (date ? " *released on " + date + "*" : "") + "\n";
+		})
+	);
 
 	// Write section files
 	Object.keys(sections).forEach(function(header) {

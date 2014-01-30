@@ -55,6 +55,11 @@ a:hover {
 	font-size: .8em;
 }
 
+/* Changelog */
+strong, em {
+	color: #666;
+}
+
 /* Documentation */
 
 #toc {

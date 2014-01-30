@@ -20,6 +20,11 @@ app.listen(80);
 
 yarm is open source and published under the terms of the [MIT license][license].
 
+## Changelog
+
+{% include changelog.markdown %}
+
+
 [express]: http://expressjs.com/
 [mongoose]: http://mongoosejs.com/
 [license]: https://raw2.github.com/njoyard/yarm/master/LICENSE
