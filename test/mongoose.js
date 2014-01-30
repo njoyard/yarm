@@ -55,7 +55,8 @@ var testSchema = new mongoose.Schema({
 		sub: {
 			field: String
 		}
-	}]
+	}],
+	"url encoded/property": String
 });
 
 testSchema.virtual("description").get(function() {
@@ -70,7 +71,8 @@ var testData = [
 	{ field1: "foo", docArray: [] },
 	{ field1: "bar", field2: "baz", docArray: [] },
 	{ field1: "sub", subDoc: { field: "foo" }, docArray: [] },
-	{ field1: "arr", docArray: [{ field: "foo" }, { field: "bar" }, { field: "baz", sub: { field: "sub" } }] }
+	{ field1: "arr", docArray: [{ field: "foo" }, { field: "bar" }, { field: "baz", sub: { field: "sub" } }] },
+	{ field1: "urldecode", docArray: [], "url encoded/property": "foo" }
 ];
 
 
@@ -256,7 +258,7 @@ describe("Mongoose resources", function() {
 				mongooseResource("test", TestModel);
 
 				request.get("/test", function(res, body) {
-					assertCollection(res, body, ["foo", "bar", "sub", "arr"]);
+					assertCollection(res, body, ["foo", "bar", "sub", "arr", "urldecode"]);
 					done();
 				});
 			});
@@ -287,12 +289,12 @@ describe("Mongoose resources", function() {
 
 			it(
 				"should negate comparisons with field!value",
-				queryTest.bind(null, "field1!foo", ["bar", "arr", "sub"])
+				queryTest.bind(null, "field1!foo", ["bar", "arr", "sub", "urldecode"])
 			);
 
 			it(
 				"should negate regex-comparisons with field!/regexp/",
-				queryTest.bind(null, "field1!/a/", ["foo", "sub"])
+				queryTest.bind(null, "field1!/a/", ["foo", "sub", "urldecode"])
 			);
 
 			it(
@@ -307,12 +309,12 @@ describe("Mongoose resources", function() {
 
 			it(
 				"should allow queries with OR operators",
-				queryTest.bind(null, "field1:/o/ OR field2:/a/", ["foo", "bar"])
+				queryTest.bind(null, "field1:/o/ OR field2:/a/", ["foo", "bar", "urldecode"])
 			);
 
 			it(
 				"should allow queries with both AND and OR operators",
-				queryTest.bind(null, "field1:/o/ OR field1:/a/ AND field2:/a/", ["foo", "bar"])
+				queryTest.bind(null, "field1:/o/ OR field1:/a/ AND field2:/a/", ["foo", "bar", "urldecode"])
 			);
 
 			it("should POST new documents to collections", function(done) {
@@ -515,6 +517,17 @@ describe("Mongoose resources", function() {
 					};
 				}))
 			);
+
+			it("should URLdecode field names", function(done) {
+				mongooseResource("test", TestModel);
+
+				request.get("/test/" + testData[4]._id + "/url%20encoded%2Fproperty", function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(body, "foo");
+
+					done();
+				});
+			});
 
 			it("should 404 on nonexistent document fields", function(done) {
 				mongooseResource("test", TestModel);
