@@ -918,7 +918,7 @@ var resource = yarm.resource("myResource");
 var deepResource = yarm.resource("path/to/deep/resource");
 ```
 
-The whole point of defining bare resource is to define custom handlers, which is described in the next chapter.
+The whole point of defining bare resource is to define custom handlers, which is described in the [next chapter](#extending-resources).
 
 
 
