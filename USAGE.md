@@ -706,6 +706,7 @@ $ curl http://localhost/rest/posts?query=title:New Post
 }
 ```
 
+By default, a "201 Created" HTTP response is sent to the client when POSTing new documents.  This behaviour can be changed by setting the `postResponse` option to a truthy value; in this case, the created document will be returned to the client.
 
 ### Serving documents
 
@@ -906,6 +907,9 @@ When your schema contains a document array, clients can add new sub-documents by
 $ curl -X POST -d '{"author":"Bob","text":"This is a nice post !"}' \
   http://localhost/rest/posts/507f191e810c19729de860ea/comments
 ```
+
+
+By default, a "201 Created" HTTP response is sent to the client when POSTing new sub-documents.  This behaviour can be changed by setting the `postResponse` option to a truthy value; in this case, the created sub-document will be returned to the client.
 
 
 
