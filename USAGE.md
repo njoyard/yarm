@@ -761,6 +761,8 @@ yarm.mongoose("posts", Post)
 
 When the `toObject` option is set on the model resource, it will apply to responses to both collection requests and document requests.  You can specify a different toObject option for sub-resources, refer to [Setting options](#setting-options) for more information.
 
+Before returning documents, yarm adds a `_request` property to them with the Express request object.  This allows using the request for example in a virtual property in your model.
+
 #### DELETE: removing documents
 
 Clients can remove documents by sending DELETE requests on the document URL.
