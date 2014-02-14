@@ -263,6 +263,8 @@ yarm.native("array", [1, 2, 3])
 }
 </code></pre></div>
 
+* `postResponse` (default `false`): when `true`, responses to POST requests will include the POSTed entity instead of being empty HTTP 201 Created responses.
+
 
 
 <div class="footer">documentation last generated for yarm version {% include version %} on {% include gendate %}</div>

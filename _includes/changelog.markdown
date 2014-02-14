@@ -1,3 +1,9 @@
+**version 0.3.3** *released on 2014-02-14*
+
+* Add 'postResponse' option to mongoose and native resources
+* Allow using a custom request handler with cb.custom(function(req, res) { ... });
+* Add readonly helper to all resources
+
 **version 0.3.2** *released on 2014-01-30*
 
 * Fixed mongoose helper directly passing yarm callback to mongoose

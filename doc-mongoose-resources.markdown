@@ -191,6 +191,8 @@ Clients can POST new documents to model collections.
 }
 </code></pre></div>
 
+By default, a "201 Created" HTTP response is sent to the client when POSTing new documents.  This behaviour can be changed by setting the `postResponse` option to a truthy value; in this case, the created document will be returned to the client.
+
 
 
 
@@ -246,6 +248,8 @@ yarm.mongoose("posts", Post)
 {% endhighlight %}
 
 When the `toObject` option is set on the model resource, it will apply to responses to both collection requests and document requests.  You can specify a different toObject option for sub-resources, refer to [Setting options](doc-extending-resources.html#setting-options) for more information.
+
+Before returning documents, yarm adds a `_request` property to them with the Express request object.  This allows using the request for example in a virtual property in your model.
 
 
 <a name="delete-removing-documents"></a>
@@ -401,6 +405,9 @@ When your schema contains a document array, clients can add new sub-documents by
 <div class="highlight"><pre><code><span class="p">$ curl -X POST -d '{"author":"Bob","text":"This is a nice post !"}' \</span>
   http://localhost/rest/posts/507f191e810c19729de860ea/comments
 </code></pre></div>
+
+
+By default, a "201 Created" HTTP response is sent to the client when POSTing new sub-documents.  This behaviour can be changed by setting the `postResponse` option to a truthy value; in this case, the created sub-document will be returned to the client.
 
 
 
