@@ -526,6 +526,7 @@ $ curl http://localhost/rest/array
 }
 ```
 
+* `postResponse` (default `false`): when `true`, responses to POST requests will include the POSTed entity instead of being empty HTTP 201 Created responses.
 
 
 ## Mongoose resources
@@ -967,6 +968,8 @@ $ curl http://localhost/rest/posts
 Overriden !
 ```
 
+You can also remove any write handler (POST, PUT, PATCH and DELETE) using the `.readonly()` method on a resource.  This is mainly useful for resources defined using helpers (like `yarm.mongose` and `yarm.native`).
+
 All method handlers receive the Express request object as their first parameter (with all facilities enabled by Express or any middleware used before yarm), and a callback as their last parameter.  The PUT and PATCH handler receives an additional boolean argument which indicates whether the request is a PATCH request (the handler is common because both methods work in a very similar way).
 
 Calling the callback with an Error object as its first argument will make yarm send a HTTP 500 response, with the error message as the response body.
@@ -1002,6 +1005,7 @@ The callback also has built-in helpers for other kinds of responses:
 * `cb.methodNotAllowed()` to send a "405 Method not allowed" response
 * `cb.notImplemented()` to send a "501 Not implemented" response
 * `cb.status(code[, body])` to send a custom HTTP status code and response body.
+* `cb.custom(handler)` to use a custom request handler.  The handler will receive the request object, the response object and Express' `next` callback as any Express handler.
 
 To serve a resource as a collection, you must call both its `.count()` and `.list()` methods.
 
@@ -1028,7 +1032,6 @@ resource.get(function(req, cb) {
   }
 });
 ```
-
 
 
 ### Sub-resources
