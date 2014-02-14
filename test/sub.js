@@ -157,6 +157,37 @@ describe("Sub-resources", function() {
 		});
 	});
 
+	it("Should disable write methods when .readonly() has been called", function(done) {
+		var writeCalled = false;
+
+		function handler() {
+			writeCalled = true;
+			arguments[arguments.length - 1]();
+		}
+
+		resource("test")
+			.put(handler)
+			.post(handler)
+			.del(handler)
+			.readonly();
+
+		request.put("/test", {}, function(req, body) {
+			assert.strictEqual(req.statusCode, 405);
+			assert(!writeCalled);
+
+			request.post("/test", {}, function(req, body) {
+				assert.strictEqual(req.statusCode, 405);
+				assert(!writeCalled);
+
+				request.del("/test", function(req, body) {
+					assert.strictEqual(req.statusCode, 405);
+					assert(!writeCalled);
+					done();
+				});
+			});
+		});
+	});
+
 	describe("Hooks", function() {
 		it("Sould allow defining hooks for each .sub() call", function(done) {
 			var r = resource("test");
