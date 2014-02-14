@@ -26,6 +26,22 @@ function assertJSON(json) {
 	return data;
 }
 
+function assertReturnedDoc(body, doc) {
+	var returned = assertJSON(body);
+
+	// Remove properties added by mongoose
+	delete returned.__v;
+	delete returned._id;
+
+	if (returned.docArray) {
+		returned.docArray.forEach(function(subdoc) {
+			delete subdoc._id;
+		});
+	}
+
+	assert.deepEqual(returned, doc);
+}
+
 
 function assertEmpty(body) {
 	if (body && body.length > 0) {
@@ -333,7 +349,6 @@ describe("Mongoose resources", function() {
 
 				request.post("/test", doc, function(res, body) {
 					assertCreated(res, body);
-					assert.strictEqual(res.statusCode, 201); // Created
 
 					// Check addition to mongoose collection first
 					TestModel.findOne({ field1: "add" }, function(err, item) {
@@ -342,6 +357,28 @@ describe("Mongoose resources", function() {
 						
 						done();
 					});
+				});
+			});
+
+			it("should return POSTed documents when postResponse is true", function(done) {
+				mongooseResource("test", TestModel).set("postResponse", true);
+				var doc = {
+					field1: "add",
+					field2: "hello",
+					subDoc: {
+						field: "world"
+					},
+					docArray: [
+						{ field: "a" },
+						{ field: "b" }
+					]
+				};
+
+				request.post("/test", doc, function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+
+					assertReturnedDoc(body, doc);
+					done();
 				});
 			});
 
@@ -785,6 +822,18 @@ describe("Mongoose resources", function() {
 						assert.strictEqual(subs.length, 1);
 						done();
 					});
+				});
+			});
+
+			it("should return POSTed documents when postResponse is true", function(done) {
+				var item = testData[3];
+				mongooseResource("test", TestModel).set("postResponse", true);
+
+				request.post("/test/" + item._id + "/docArray", { field: "bang" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assertReturnedDoc(body, { field: "bang" });
+					
+					done();
 				});
 			});
 

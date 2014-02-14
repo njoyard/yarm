@@ -167,8 +167,20 @@ describe("Native resources", function() {
 			resource("test", obj);
 
 			request.post("/test", { _key: "added", _value: "baz" }, function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
+				assert.strictEqual(res.statusCode, 201);
 				assert.strictEqual(obj.added, "baz");
+
+				done();
+			});
+		});
+
+		it("Should return POSTed values when postResponse is true", function(done) {
+			var obj = { foo: "bar" };
+			resource("test", obj).set("postResponse", true);
+
+			request.post("/test", { _key: "added", _value: "baz" }, function(res, body) {
+				assert.strictEqual(res.statusCode, 200);
+				assert.strictEqual(body, "baz");
 
 				done();
 			});
@@ -212,8 +224,21 @@ describe("Native resources", function() {
 			resource("test", arr);
 
 			request.post("/test", { _value: "baz" }, function(res, body) {
-				assert.strictEqual(res.statusCode, 204);
+				assert.strictEqual(res.statusCode, 201);
 				assert.strictEqual(arr.join(","), "foo,bar,baz");
+
+				done();
+			});
+		});
+
+		it("Should return POSTed array items when postResponse is true", function(done) {
+
+			var arr = ["foo", "bar"];
+			resource("test", arr).set("postResponse", true);
+
+			request.post("/test", { _value: "baz" }, function(res, body) {
+				assert.strictEqual(res.statusCode, 200);
+				assert.strictEqual(body, "baz");
 
 				done();
 			});
@@ -356,8 +381,20 @@ describe("Native resources", function() {
 				resource("test", obj);
 
 				request.post("/test/obj", { _key: "added", _value: "baz" }, function(res, body) {
-					assert.strictEqual(res.statusCode, 204);
+					assert.strictEqual(res.statusCode, 201);
 					assert.strictEqual(obj.obj.added, "baz");
+
+					done();
+				});
+			});
+
+			it("Should return POSTed value when postResponse is true", function(done) {
+				var obj = { obj: { foo: "bar" } };
+				resource("test", obj).set("postResponse", true);
+
+				request.post("/test/obj", { _key: "added", _value: "baz" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(body, "baz");
 
 					done();
 				});
@@ -401,8 +438,20 @@ describe("Native resources", function() {
 				resource("test", obj);
 
 				request.post("/test/arr", { _value: "baz" }, function(res, body) {
-					assert.strictEqual(res.statusCode, 204);
+					assert.strictEqual(res.statusCode, 201);
 					assert.strictEqual(obj.arr.join(","), "foo,bar,baz");
+
+					done();
+				});
+			});
+
+			it("Should return POSTed array items when postResponse is true", function(done) {
+				var obj = { arr: ["foo", "bar"] };
+				resource("test", obj).set("postResponse", true);
+
+				request.post("/test/arr", { _value: "baz" }, function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(body, "baz");
 
 					done();
 				});
