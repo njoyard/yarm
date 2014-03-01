@@ -1,3 +1,8 @@
+NEXT
+* Fixed a wrong implementation of mongoose and native hooks that prevented
+  overriding subresources
+* Fixed error when requesting aggregate collections with a limit of 0
+
 version 0.3.3 - 2014-02-14
 * Add 'postResponse' option to mongoose and native resources
 * Allow using a custom request handler with cb.custom(function(req, res) { ... });
