@@ -1,3 +1,9 @@
+**version 0.3.4** *released on 2014-03-01*
+
+* Fixed a wrong implementation of mongoose and native hooks that prevented
+  overriding subresources
+* Fixed error when requesting aggregate collections with a limit of 0
+
 **version 0.3.3** *released on 2014-02-14*
 
 * Add 'postResponse' option to mongoose and native resources
