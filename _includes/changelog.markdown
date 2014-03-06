@@ -1,3 +1,7 @@
+**version 0.3.5** *released on 2013-03-06*
+
+* Fixed not being able to POST to mongoose scalar array fields
+
 **version 0.3.4** *released on 2014-03-01*
 
 * Fixed a wrong implementation of mongoose and native hooks that prevented
