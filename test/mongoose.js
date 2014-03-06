@@ -72,6 +72,7 @@ var testSchema = new mongoose.Schema({
 			field: String
 		}
 	}],
+	array: [String],
 	"url encoded/property": String
 });
 
@@ -84,11 +85,11 @@ var TestModel = mongoose.model("test", testSchema);
 /* Empty docArrays are not mandatory, but mongoose adds them anyway so
    having them here makes comparison easier */
 var testData = [
-	{ field1: "foo", docArray: [] },
-	{ field1: "bar", field2: "baz", docArray: [] },
-	{ field1: "sub", subDoc: { field: "foo" }, docArray: [] },
-	{ field1: "arr", docArray: [{ field: "foo" }, { field: "bar" }, { field: "baz", sub: { field: "sub" } }] },
-	{ field1: "urldecode", docArray: [], "url encoded/property": "foo" }
+	{ field1: "foo", docArray: [], array: [] },
+	{ field1: "bar", field2: "baz", docArray: [], array: [] },
+	{ field1: "sub", subDoc: { field: "foo" }, docArray: [], array: ["foo", "bar"] },
+	{ field1: "arr", docArray: [{ field: "foo" }, { field: "bar" }, { field: "baz", sub: { field: "sub" } }], array: [] },
+	{ field1: "urldecode", docArray: [], array: [], "url encoded/property": "foo" }
 ];
 
 
@@ -344,7 +345,8 @@ describe("Mongoose resources", function() {
 					docArray: [
 						{ field: "a" },
 						{ field: "b" }
-					]
+					],
+					array: []
 				};
 
 				request.post("/test", doc, function(res, body) {
@@ -371,7 +373,8 @@ describe("Mongoose resources", function() {
 					docArray: [
 						{ field: "a" },
 						{ field: "b" }
-					]
+					],
+					array: [ "x", "y" ]
 				};
 
 				request.post("/test", doc, function(res, body) {
@@ -615,6 +618,45 @@ describe("Mongoose resources", function() {
 					};
 				}))
 			);
+
+			it(
+				"should POST to array fields in documents",
+				composeTests(testData.map(function(item) {
+					return function(done) {
+						mongooseResource("test", TestModel);
+
+						request.post("/test/" + item._id + "/array", { _value: "baz" }, function(res, body) {
+							assert.strictEqual(body, "Created");
+							assert.strictEqual(res.statusCode, 201);
+
+							TestModel.findById(item._id, function(err, doc) {
+								assert.ifError(err);
+								assert.notStrictEqual(doc.array.indexOf("baz"), -1);
+								done();
+							});
+						});
+					};
+				}))
+			);
+
+			it("should DELETE array field items in documents", function(done) {
+				mongooseResource("test", TestModel);
+
+				var item = testData.filter(function(item) {
+					return item.field1 === "sub";
+				})[0];
+
+				request.del("/test/" + item._id + "/array/0", function(res, body) {
+					assertEmpty(body);
+					assert.strictEqual(res.statusCode, 204);
+			
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.array.indexOf("foo"), -1);
+						done();
+					});
+				});
+			});
 		});
 
 		describe("Subdocuments", function() {
