@@ -1,3 +1,7 @@
+**version 0.3.6** *released on 2013-04-23*
+
+* Enable creating separate yarm instances
+
 **version 0.3.5** *released on 2013-03-06*
 
 * Fixed not being able to POST to mongoose scalar array fields
