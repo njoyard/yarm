@@ -1516,7 +1516,7 @@ Hey !
 
 If you use the yarm middleware on multiple routes (or multiple servers), by default all resources will be shared.
 
-```js
+```javascript
 app.use("/rest1", yarm());
 app.use("/rest2", yarm());
 
@@ -1536,7 +1536,7 @@ Hello, world
 
 If you want separate resources, you can create a separate yarm instance with `yarm.newInstance()`.
 
-```js
+```javascript
 var yarm = require("yarm");
 var yarmFR = yarm.newInstance();
 
