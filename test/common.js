@@ -430,6 +430,7 @@ function composeTests(array) {
 
 
 module.exports = {
+	app: app,
 	request: request,
 	resource: resource,
 	callbackTests: callbackTests,
