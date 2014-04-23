@@ -21,7 +21,7 @@
   "main": "index.js",
   "devDependencies": {
     "mocha": "*",
-    "express": "*",
+    "express": "~3.5.1",
     "mongoose": "*",
     "mongodb": "*"
   },
