@@ -356,7 +356,7 @@ describe("Mongoose resources", function() {
 					TestModel.findOne({ field1: "add" }, function(err, item) {
 						assert.ifError(err);
 						assert(item);
-						
+
 						done();
 					});
 				});
@@ -649,7 +649,7 @@ describe("Mongoose resources", function() {
 				request.del("/test/" + item._id + "/array/0", function(res, body) {
 					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
-			
+
 					TestModel.findById(item._id, function(err, doc) {
 						assert.ifError(err);
 						assert.strictEqual(doc.array.indexOf("foo"), -1);
@@ -712,7 +712,7 @@ describe("Mongoose resources", function() {
 				});
 			});
 		});
-		
+
 		describe("Subdocument fields", function() {
 			it("should GET fields in subdocuments", function(done) {
 				var item = testData[2];
@@ -874,7 +874,7 @@ describe("Mongoose resources", function() {
 				request.post("/test/" + item._id + "/docArray", { field: "bang" }, function(res, body) {
 					assert.strictEqual(res.statusCode, 200);
 					assertReturnedDoc(body, { field: "bang" });
-					
+
 					done();
 				});
 			});
@@ -990,7 +990,7 @@ describe("Mongoose resources", function() {
 				});
 			});
 		});
-		
+
 		describe("DocumentArray document fields", function() {
 			it("should GET fields in documents in DocumentArrays",
 				composeTests(testData[3].docArray.map(function(item, index) {
@@ -1038,6 +1038,37 @@ describe("Mongoose resources", function() {
 
 						done();
 					});
+				});
+			});
+		});
+
+		describe("Overrides", function() {
+			it("should allow overriding documents", function(done) {
+				mongooseResource("test", TestModel)
+					.sub('override/property')
+					.get(function(req, cb) {
+						cb(null, "hello, world!");
+					});
+
+				request.get("/test/override/property", function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(body, "hello, world!");
+					done();
+				});
+			});
+
+			it("should allow overriding document properties", function(done) {
+				var item = testData[0];
+				mongooseResource("test", TestModel)
+					.sub(':id/helloworld')
+					.get(function(req, cb) {
+						cb(null, "hello, world!");
+					});
+
+				request.get("/test/" + item._id + "/helloworld", function(res, body) {
+					assert.strictEqual(res.statusCode, 200);
+					assert.strictEqual(body, "hello, world!");
+					done();
 				});
 			});
 		});
@@ -1151,7 +1182,7 @@ describe("Mongoose resources", function() {
 			request.get("/test/nope", function(res, body) {
 				assert.strictEqual(res.statusCode, 404);
 				assert.strictEqual(body, "Not found");
-				
+
 				done();
 			});
 		});
