@@ -1,8 +1,12 @@
-**version 0.3.6** *released on 2013-04-23*
+**version 0.3.7** *released on 2014-05-05*
+
+* Enable overriding mongoose collection paths (fixes #1)
+
+**version 0.3.6** *released on 2014-04-23*
 
 * Enable creating separate yarm instances
 
-**version 0.3.5** *released on 2013-03-06*
+**version 0.3.5** *released on 2014-03-06*
 
 * Fixed not being able to POST to mongoose scalar array fields
 
