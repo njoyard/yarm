@@ -386,9 +386,23 @@ describe("Mongoose resources", function() {
 			});
 
 			it("should allow sorting collections", function(done) {
+				mongooseResource("test", TestModel);
+
+				request.get("/test?sort=field1", function(res, body) {
+					var data = assertJSON(body);
+					var docs = data._items;
+
+					assert.strictEqual(docs[0].field1, "arr");
+					assert.strictEqual(docs[1].field1, "bar");
+					assert.strictEqual(docs[2].field1, "foo");
+					assert.strictEqual(docs[3].field1, "sub");
+					done();
+				});
+			});
+
+			it("should allow setting the default sort with an option", function(done) {
 				mongooseResource("test", TestModel)
 					.set("sort", { field1: "asc" });
-
 
 				request.get("/test", function(res, body) {
 					var data = assertJSON(body);
