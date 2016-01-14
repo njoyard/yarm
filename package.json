@@ -20,10 +20,11 @@
   },
   "main": "index.js",
   "devDependencies": {
-    "mocha": "*",
-    "express": "~3.5.1",
-    "mongoose": "*",
-    "mongodb": "*"
+    "mocha": "2.*",
+    "express": "4.*",
+    "body-parser": "*",
+    "mongoose": "4.*",
+    "mongodb": "2.*"
   },
   "scripts": {
     "test": "node_modules/.bin/mocha"
