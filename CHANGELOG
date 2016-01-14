@@ -1,3 +1,11 @@
+version 0.4.0 - 2015-01-14
+* Warning: probably incompatible with 0.3.x because of updated dependencies
+* Complete move to express 4.x API
+* Move to mongodb 2.x
+* Move to mongoose 4.x
+* Add 'unauthorized' http status, as mentioned in docs
+* Add 'status()' helper to hooks 'next' callback, as mentioned in docs
+
 version 0.3.7 - 2014-05-05
 * Enable overriding mongoose collection paths (fixes #1)
 
