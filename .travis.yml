@@ -1,14 +1,9 @@
 language: node_js
 node_js:
-  - "0.11"
+  - "5"
+  - "4"
+  - "0.12"
   - "0.10"
-env:
-  matrix:
-    - EXPRESS=3
-    - EXPRESS=4
-before_script:
-  - "[ \"x$EXPRESS\" = \"x3\" ] && npm install express@~3.5.1 || true"
-  - "[ \"x$EXPRESS\" = \"x4\" ] && npm install express@~4.0.0 body-parser || true"
 script: "npm test"
 services:
   - mongodb
