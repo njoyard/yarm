@@ -14,11 +14,7 @@ var http = require("http"),
 
 
 /* Test app setup */
-if (process.env.EXPRESS === "4") {
-	app.use(require("body-parser").json());
-} else {
-	app.use(express.bodyParser());
-}
+app.use(require("body-parser").json());
 
 app.use("/rest", yarm());
 app.listen(8081);
@@ -359,7 +355,7 @@ function callbackTests(method, it) {
 			});
 
 			doRequest("/test", function(res, body) {
-				assert.strictEqual(res.headers["content-type"], process.env.EXPRESS === "4" ? "text/x-test-content; charset=utf-8" : "text/x-test-content");
+				assert.strictEqual(res.headers["content-type"], "text/x-test-content; charset=utf-8");
 				assert.strictEqual(body, "Test content");
 
 				done();
@@ -381,7 +377,7 @@ function callbackTests(method, it) {
 			});
 
 			doRequest("/test", function(res, body) {
-				assert.strictEqual(res.headers["content-type"], process.env.EXPRESS === "4" ? "text/x-test-content; charset=utf-8" : "text/x-test-content");
+				assert.strictEqual(res.headers["content-type"], "text/x-test-content; charset=utf-8");
 				assert.strictEqual(body, "Test file content");
 
 				done();
@@ -406,7 +402,7 @@ function callbackTests(method, it) {
 		});
 
 		doRequest("/test?foo=bar", function(res, body) {
-			assert.strictEqual(request.param("foo"), "bar");
+			assert.strictEqual(request.query["foo"], "bar");
 
 			done();
 		});
