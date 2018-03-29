@@ -538,10 +538,26 @@ describe("Mongoose resources", function() {
 			});
 
 			it("should PUT documents", function(done) {
+				var item = testData[1];
+				mongooseResource("test", TestModel);
+
+				request.put("/test/" + item._id, testData[0], function(res, body) {
+					assertEmpty(body);
+					assert.strictEqual(res.statusCode, 204);
+
+					TestModel.findById(item._id, function(err, doc) {
+						assert.ifError(err);
+						assert.strictEqual(doc.field2, undefined);
+						done();
+					});
+				});
+			});
+
+			it("should PATCH documents", function(done) {
 				var item = testData[0];
 				mongooseResource("test", TestModel);
 
-				request.put("/test/" + item._id, { field2: "bar" }, function(res, body) {
+				request.patch("/test/" + item._id, { field2: "bar" }, function(res, body) {
 					assertEmpty(body);
 					assert.strictEqual(res.statusCode, 204);
 
