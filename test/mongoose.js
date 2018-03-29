@@ -195,7 +195,8 @@ function assertDocArrayCollection(res, body, fieldvalues) {
 describe("Mongoose resources", function() {
 	// Connect once before all tests
 	before(function(done) {
-		mongoose.connect("mongodb://localhost/yarmTest", function(err) {
+		mongoose.Promise = global.Promise;
+		mongoose.connect("mongodb://localhost/yarmTest", {useMongoClient: true}, function(err) {
 			done(err);
 		});
 	});
