@@ -125,6 +125,11 @@ When mongoose is available, you can use `yarm.mongoose()` to serve models.
 var app = require("express")();
 var yarm = require("yarm");
 var mongoose = require("mongoose");
+const bodyParser = require('body-parser');
+
+mongoose.connect('mongodb://localhost/yarm');
+
+app.use(bodyParser.json());
 
 app.use("/rest", yarm());
 
@@ -691,7 +696,7 @@ Aggregate resources don't support a `sort` option, as you can already sort docum
 Clients can POST new documents to model collections.
 
 ```
-$ curl -X POST -d '{"title":"New Post","text":"Whatever..."}' \
+$ curl -X POST -H "Content-Type: application/json" -d '{"title":"New Post","text":"Whatever..."}' \
   http://localhost/rest/posts
 
 $ curl http://localhost/rest/posts?query=title:New Post
@@ -779,7 +784,7 @@ HTTP/1.1 404 Not found
 Clients can update documents by sending PUT or PATCH requests on the document URL.  For now, both methods behave as a PATCH request, that is, they update all fields that are present in the request body, without touching other fields.
 
 ```
-$ curl -X PATCH -d '{"title":"New title"}' \
+$ curl -X PATCH -H "Content-Type: application/json" -d '{"title":"New title"}' \
   http://localhost/rest/posts/507f191e810c19729de860ea
 $ curl http://localhost/rest/posts/507f191e810c19729de860ea
 {
@@ -891,7 +896,7 @@ $ curl -X DELETE http://localhost/posts/my-first-post/comments/507f191e810c19729
 Clients can update document properties or sub-properties by sending PUT or PATCH requests on the property URL.  If the request body contains a `_value` field, it will be used instead.  This allows passing values that would otherwise not be valid JSON (strings, numbers, booleans, ...).
 
 ```
-$ curl -X PATCH -d '{"_value":"New title"}' \
+$ curl -X PATCH -H "Content-Type: application/json" -d '{"_value":"New title"}' \
   http://localhost/rest/posts/507f191e810c19729de860ea/title
 
 $ curl http://localhost/rest/posts/507f191e810c19729de860ea
@@ -907,7 +912,7 @@ $ curl http://localhost/rest/posts/507f191e810c19729de860ea
 When your schema contains a document array, clients can add new sub-documents by sending POST requests on the document array URL.
 
 ```
-$ curl -X POST -d '{"author":"Bob","text":"This is a nice post !"}' \
+$ curl -X POST -H "Content-Type: application/json" -d '{"author":"Bob","text":"This is a nice post !"}' \
   http://localhost/rest/posts/507f191e810c19729de860ea/comments
 ```
 
@@ -1452,7 +1457,7 @@ $ curl http://localhost/rest/path/to/resource
 }
 ```
 
-* `req.match(pattern, path)` matches `path` to `pattern` and returns the match.  `pattern` should be a path pattern with optional parameter or catchall wildcards.  When `path` matches, it returns an object with all matched wildcard values, or `false` otherwise. 
+* `req.match(pattern, path)` matches `path` to `pattern` and returns the match.  `pattern` should be a path pattern with optional parameter or catchall wildcards.  When `path` matches, it returns an object with all matched wildcard values, or `false` otherwise.
 
 ```javascript
 yarm.resource("path/to/resource")
