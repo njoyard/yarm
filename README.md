@@ -1,25 +1,16 @@
-yarm
-====
+# yarm
 
-*Yet Another REST Middleware for node.js, Express and mongoose.*
-
-Master branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=master)](https://travis-ci.org/njoyard/yarm)
-
-Development branch: [![Build Status](https://travis-ci.org/njoyard/yarm.png?branch=devel)](https://travis-ci.org/njoyard/yarm)
-
-
+_Yet Another REST Middleware for node.js, Express and mongoose._
 
 ## Installation
 
-Use npm to install yarm, or add yarm to your package.json dependencies.
+Use npm or yarn to install yarm, or add yarm to your package.json dependencies.
 
 ```
-$ npm install yarm
+$ yarn install yarm
 ```
 
 yarm has no dependencies, however it is intended to be used with Express and will have additional features if mongoose is present.
-
-
 
 ## Usage
 
@@ -37,7 +28,6 @@ app.use("/rest", yarm());
 app.listen(80);
 ```
 
-
 ### Serving native javascript resources
 
 Use `yarm.native()` to serve native Javascript objects or arrays.
@@ -53,10 +43,7 @@ yarm.native("me", {
   age: 30
 });
 
-yarm.native("friends", [
-  "Bob",
-  "Charlie"
-]);
+yarm.native("friends", ["Bob", "Charlie"]);
 
 app.listen(80);
 ```
@@ -83,7 +70,6 @@ Charlie
 
 Head on to the documentation on [Native resources][doc-native] for more details.
 
-
 ### Serving mongoose models and aggregates
 
 When mongoose is available, you can use `yarm.mongoose()` to serve models.
@@ -98,10 +84,12 @@ app.use("/rest", yarm());
 var postSchema = new mongoose.Schema({
   title: String,
   text: String,
-  comments: [{
-    author: String,
-    text: String
-  }]
+  comments: [
+    {
+      author: String,
+      text: String
+    }
+  ]
 });
 
 var Post = mongoose.model("post", postSchema);
@@ -149,7 +137,6 @@ First !
 
 Head on to the documentation on [Mongoose resources][doc-mongoose] for more details.
 
-
 ### Serving custom resources
 
 Use `yarm.resource` to define resources with custom handlers.
@@ -195,13 +182,11 @@ $ curl http://localhost/rest/greeting/pirate
 
 Head on to the documentation on [Custom resources][doc-custom] for more details.
 
-
 ### Extending served resources
 
 yarm allows adding and replacing handlers for any resource or sub-resource. This enables restricting or extending the behaviour of the default native and mongoose resource handlers, as well as defining very complex custom resource hierarchies.
 
 ```javascript
-
 yarm.<whatever>()
   .get(function(req, cb) {
     // Override GET handler here
@@ -229,12 +214,9 @@ yarm.resource("already/defined/path")
 
 Head on to the documentation on [Extending resources][doc-extend] for more details.
 
-
-
 ## Contributing
 
-yarm is published under the terms of the MIT license.  Feel free to report bugs or send pull requests.
-
+yarm is published under the terms of the MIT license. Feel free to report bugs or send pull requests.
 
 [doc]: http://yarm.njoyard.fr
 [doc-native]: http://yarm.njoyard.fr/doc-native-resources.html
