@@ -1,0 +1,64 @@
+version: 2
+
+jobs:
+  test-node-7:
+    docker:
+      - image: circleci/node:7
+      - image: circleci/mongo:3.4.4
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-7-{{ checksum "package.json" }}
+          - v1-dependencies-7-
+      - run: yarn install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-7-{{ checksum "package.json" }}
+      - run: yarn test
+
+  test-node-8:
+    docker:
+      - image: circleci/node:8
+      - image: circleci/mongo:3.4.4
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-8-{{ checksum "package.json" }}
+          - v1-dependencies-8-
+      - run: yarn install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-8-{{ checksum "package.json" }}
+      - run: yarn test
+
+  test-node-9:
+    docker:
+      - image: circleci/node:9
+      - image: circleci/mongo:3.4.4
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-9-{{ checksum "package.json" }}
+          - v1-dependencies-9-
+      - run: yarn install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-9-{{ checksum "package.json" }}
+      - run: yarn test
+
+workflows:
+  version: 2
+  test-node:
+    jobs:
+      - test-node-7
+      - test-node-8
+      - test-node-9
