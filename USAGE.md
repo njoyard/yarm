@@ -781,7 +781,7 @@ HTTP/1.1 404 Not found
 
 #### PUT and PATCH: updating documents
 
-Clients can update documents by sending PUT or PATCH requests on the document URL.  For now, both methods behave as a PATCH request, that is, they update all fields that are present in the request body, without touching other fields.
+Clients can update documents by sending PUT or PATCH requests on the document URL.  PATCH requests update all fields that are present in the request body, without touching other fields.  PUT requests update all fields of the document, setting to undefined those absent of the request body.
 
 ```
 $ curl -X PATCH -H "Content-Type: application/json" -d '{"title":"New title"}' \
@@ -791,6 +791,14 @@ $ curl http://localhost/rest/posts/507f191e810c19729de860ea
   "_id": "507f191e810c19729de860ea",
   "title": "New title",
   "text": "Hello, World"
+}
+
+$ curl -X PUT -H "Content-Type: application/json" -d '{"title":"New title"}' \
+  http://localhost/rest/posts/507f191e810c19729de860ea
+$ curl http://localhost/rest/posts/507f191e810c19729de860ea
+{
+  "_id": "507f191e810c19729de860ea",
+  "title": "New title"
 }
 ```
 
