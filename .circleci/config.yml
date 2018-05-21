@@ -13,6 +13,7 @@ jobs:
           - v1-dependencies-7-{{ checksum "package.json" }}
           - v1-dependencies-7-
       - run: yarn install
+      - run: yarn lint:js
       - save_cache:
           paths:
             - node_modules
@@ -31,6 +32,7 @@ jobs:
           - v1-dependencies-8-{{ checksum "package.json" }}
           - v1-dependencies-8-
       - run: yarn install
+      - run: yarn lint:js
       - save_cache:
           paths:
             - node_modules
@@ -49,6 +51,7 @@ jobs:
           - v1-dependencies-9-{{ checksum "package.json" }}
           - v1-dependencies-9-
       - run: yarn install
+      - run: yarn lint:js
       - save_cache:
           paths:
             - node_modules
